@@ -1,0 +1,82 @@
+{
+  "mcpServers": {
+    "onmisearch": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "{PATH_TO_OMNISEARCH}/dist/index.js"
+      ],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}",
+        "KAGI_API_KEY": "${KAGI_API_KEY}",
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}",
+        "GITHUB_API_KEY": "${GITHUB_API_KEY}",
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}",
+        "JINA_AI_API_KEY": "${JINA_AI_API_KEY}",
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
+        "FIRECRAWL_BASE_URL": "http://localhost:3002",
+        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DATABASE_URI",
+        "crystaldba/postgres-mcp",
+        "--access-mode=restricted"
+      ],
+      "env": {
+        "DATABASE_URI": "postgresql://mcp:mcp@host.docker.internal:5432/{project_db}"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "mcp-mermaid": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-mermaid"
+      ],
+      "env": {}
+    },
+    "docker": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-docker"
+      ],
+      "env": {}
+    }
+  }
+}
