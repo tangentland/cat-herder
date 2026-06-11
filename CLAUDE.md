@@ -481,7 +481,7 @@ Sessions table → replace Latest Session → update header.
 ### Document Hierarchy
 
 ```
-docs/
+workflow/                       <- PROCESS: planning, governance, audits, summaries
 ├── incomplete_plans/
 │   ├── plan-of-plans.md        <- META: Sequenced execution order (source of truth)
 │   ├── todo.md                 <- INDEX: All plans with status
@@ -492,17 +492,32 @@ docs/
 │       └── task-X.Y-description.md
 ├── completed_plans/            <- ARCHIVE: Completed plans
 ├── implementation_summaries/   <- Per-task implementation summaries
-├── CODEBASE_INDEX.md           <- Code navigation index
+├── session-summaries/          <- Per-session summaries
+├── bullshit/                   <- @ch-bsd audit memory (INDEX, IMPRESSIONS, findings)
+├── functional-tests/           <- Functional / E2E test inventory
+├── review-output/              <- Agent review reports (gitignored — runtime)
+├── templates/                  <- Document templates (task-spec, proposed-plan, …)
+├── INDEX.md                    <- Map of the workflow/ tree
+├── PLANNING_WORKFLOW.md        <- How to plan, explore, gate approval
+├── PLAN_GOVERNANCE.md          <- Lifecycle, staleness, question-forcing
 ├── QUICK_REFERENCE.md          <- Fast pattern lookup
 ├── PATTERNS.md                 <- Copy-paste code patterns
 ├── TECH_STACK_DECISIONS.md     <- Approved libraries and rationale
 ├── development_resources.md    <- Available infrastructure inventory
+└── test_mock_registry.md       <- Mock governance registry
+
+docs/                           <- KNOWLEDGE: architecture, guides, reference, specs
+├── CODEBASE_INDEX.md           <- Code navigation index
+├── gmd/                        <- Graph Markdown primer + spec
+├── guides/  reference/  specs/  design/  archive/
 └── architecture/               <- System architecture docs, ADRs, explorations
     ├── README.md               <- Architecture overview
     ├── ARCHITECTURE_INDEX.md   <- Architecture navigation
     ├── todo.md                 <- Tracked gaps
     ├── adr/                    <- Architecture Decision Records
-    └── explorations/           <- Design space research
+    ├── concepts/               <- Stable domain concepts
+    ├── explorations/           <- Design space research
+    └── tech-stack/             <- Per-technology rationale
 ```
 
 ### Source of Truth

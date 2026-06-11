@@ -49,8 +49,8 @@ Files containing placeholders:
 - `CLAUDE.md` — main Claude instructions
 - `.mcp.json` — MCP server config (database URI)
 - `handoff.md` — session handoff
-- `QUICK_REFERENCE.md` — quick lookup
-- `PATTERNS.md` — code patterns
+- `workflow/QUICK_REFERENCE.md` — quick lookup
+- `workflow/PATTERNS.md` — code patterns
 - `.claude/agents/*.md` and `.claude/commands/*.md` — `{project_package}` / `{PROJECT_NAME}` in examples
 
 Quick scan for anything left:
@@ -230,20 +230,24 @@ Task Completion Workflow defined in CLAUDE.md automatically.
 | File | Purpose |
 |------|---------|
 | `CLAUDE.md` | Main Claude Code instructions — development workflow, quality gates, agents |
-| `install.sh` | Installs + wires the tooling (llm-tldr, rtk, caveman, openwolf, GMD) |
-| `docs/PLANNING_WORKFLOW.md` | Full planning, exploration, and plan approval workflow |
-| `docs/templates/` | Document templates (task-spec, proposed-plan, exploration, handoff) |
+| `install.sh` | Installs + wires the tooling (rmx, llm-tldr, rtk, caveman, openwolf, GMD) |
+| `docs/` | **Knowledge** — `architecture/` (README, INDEX, todo, adr/, concepts/, explorations/, tech-stack/), `CODEBASE_INDEX.md`, `guides/`, `reference/`, `specs/`, `design/`, `gmd/` |
+| `workflow/` | **Process** — plans, governance, templates, audits, summaries (see `workflow/INDEX.md`) |
+| `workflow/PLANNING_WORKFLOW.md` | Full planning, exploration, and plan approval workflow |
+| `workflow/PLAN_GOVERNANCE.md` | Plan lifecycle, staleness, question-forcing |
+| `workflow/templates/` | Document templates (task-spec, proposed-plan, exploration, handoff) |
+| `workflow/test_mock_registry.md` | Mock governance registry |
 | `docs/gmd/` | GMD primer + conformance spec (Graph Markdown authoring) |
 | `tools/gmd/` | Bundled GMD tooling — `gmd lint\|init\|slice`, `lint.py` |
 | `scripts/lint-gmd.sh` | Lint `CLAUDE.md` + `docs/` as a GMD graph |
 | `.gmd/config.yml` | Project-local GMD lint config |
-| `.claude/agents/` | Agent suite — `ch-architect`, `ch-code-reviewer`, `ch-security-auditor`, `ch-test-engineer`, `ch-doc-writer`, `ch-gap-master`, `ch-performance-tuner`, `ch-work-summary`, `general-purpose` |
-| `.claude/commands/` | Commands — `/ch-review`, `/ch-audit`, `/ch-test-gen`, `/ch-handoff` |
+| `.claude/agents/` | Agent suite — `ch-architect`, `ch-code-reviewer`, `ch-security-auditor`, `ch-test-engineer`, `ch-doc-writer`, `ch-gap-master`, `ch-bsd`, `ch-performance-tuner`, `ch-work-summary`, `general-purpose` |
+| `.claude/commands/` | Commands — `/ch-review`, `/ch-audit`, `/ch-bsd`, `/ch-test-gen`, `/ch-handoff` |
 | `.claude/rules/` | Always-on rules (e.g. `openwolf.md`) |
 | `.mcp.json` | MCP server configuration — GitHub, Docker, search, PostgreSQL, diagrams |
-| `.gitignore` | Git ignore rules — venv, cache, test output, IDE files |
+| `.gitignore` | Git ignore rules — venv, cache, test output, memory state, IDE files |
 | `handoff.md` | Session handoff template — context between conversations |
-| `QUICK_REFERENCE.md` | Fast lookup — commands, conventions, checklist |
-| `PATTERNS.md` | Copy-paste code patterns — testing, async, FastAPI |
-| `development_resources.md` | Infrastructure inventory — Docker, database, environment |
+| `workflow/QUICK_REFERENCE.md` | Fast lookup — commands, conventions, checklist |
+| `workflow/PATTERNS.md` | Copy-paste code patterns — testing, async, FastAPI |
+| `workflow/development_resources.md` | Infrastructure inventory — Docker, database, environment |
 | `SETUP.md` | This file — bootstrap instructions |
