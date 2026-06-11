@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 #
-# install.sh — bootstrap the cat-herder Claude Code template's tooling.
+# install.sh — bootstrap a cat-herder Claude Code project from this template.
 #
-# Installs and wires the optional-but-recommended dependencies that make this
-# template's discovery ladder, token savings, and memory features work:
+# Scaffolds the template into a PROJECT_PATH (created if missing; existing files
+# are preserved, never clobbered), then installs and wires the optional-but-
+# recommended dependencies that make the discovery ladder, token savings, and
+# memory features work:
 #
 #   rmx       — refmatrix: lookup + GMD memory surface          (github.com/tangentland/refmatrix)
 #   llm-tldr  — token-efficient code analysis / call graphs     (PyPI)
@@ -12,22 +14,23 @@
 #   openwolf  — token-conscious project brain + buglog            (npm: openwolf)
 #   gmd       — Graph Markdown tooling (bundled under tools/gmd)
 #
-# The installer is idempotent and safe to re-run. Each dependency is optional:
-# skip any with --skip-<name>, or install nothing extra with --minimal.
+# With no PROJECT_PATH the installer wires the template repo in place. Given a
+# path, it scaffolds there and wires that project. Idempotent and safe to re-run.
 #
 # Usage:
-#   ./install.sh                 # install everything available for your platform
-#   ./install.sh --minimal       # only wire the bundled GMD tooling
+#   ./install.sh                      # wire the template repo in place
+#   ./install.sh ../my-project        # scaffold into ../my-project, then wire it
+#   ./install.sh ~/code/app --minimal # scaffold, only wire bundled GMD tooling
 #   ./install.sh --skip-openwolf --skip-caveman
 #   ./install.sh --help
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-cd "$ROOT"
+ROOT="$(cd "$(dirname "$0")" && pwd)"   # template source (where this script lives)
 
 # ---- options ---------------------------------------------------------------
 SKIP_RMX=0; SKIP_TLDR=0; SKIP_RTK=0; SKIP_CAVEMAN=0; SKIP_OPENWOLF=0; MINIMAL=0
+PROJECT_DIR=""
 for arg in "$@"; do
   case "$arg" in
     --minimal)        MINIMAL=1 ;;
@@ -37,11 +40,23 @@ for arg in "$@"; do
     --skip-caveman)   SKIP_CAVEMAN=1 ;;
     --skip-openwolf)  SKIP_OPENWOLF=1 ;;
     -h|--help)
-      sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
-    *) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
+    --*) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
+    *)
+      [ -n "$PROJECT_DIR" ] && { echo "multiple project paths given: '$PROJECT_DIR' and '$arg'" >&2; exit 2; }
+      PROJECT_DIR="$arg" ;;
   esac
 done
+
+# ---- resolve template vs project root --------------------------------------
+TEMPLATE_ROOT="$ROOT"
+if [ -n "$PROJECT_DIR" ]; then
+  mkdir -p "$PROJECT_DIR"
+  PROJECT_ROOT="$(cd "$PROJECT_DIR" && pwd)"
+else
+  PROJECT_ROOT="$TEMPLATE_ROOT"
+fi
 
 # ---- output helpers --------------------------------------------------------
 say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
@@ -50,6 +65,37 @@ warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 WIRED=(); SKIPPED=(); FAILED=()
+
+# ---------------------------------------------------------------------------
+# Scaffold the template into PROJECT_ROOT. Existing files are preserved
+# (never overwritten) so this is safe on a partially-populated project.
+# Skips the template's own VCS + runtime state.
+# ---------------------------------------------------------------------------
+scaffold_project() {
+  if [ "$PROJECT_ROOT" = "$TEMPLATE_ROOT" ]; then
+    say "No project path — wiring the template repo in place ($PROJECT_ROOT)"
+    return
+  fi
+  say "Scaffolding template into $PROJECT_ROOT (existing files preserved)"
+  if have rsync; then
+    rsync -a --ignore-existing \
+      --exclude '.git/' --exclude '.memory.db*' --exclude 'memory.*' --exclude '.memory.*' \
+      --exclude '__pycache__/' --exclude '*.pyc' --exclude '.venv/' \
+      --exclude 'node_modules/' --exclude '.wolf/' --exclude '.DS_Store' \
+      "$TEMPLATE_ROOT"/ "$PROJECT_ROOT"/
+    ok "scaffold complete (rsync)"
+  else
+    # Portable fallback: copy known top-level entries, never clobbering existing.
+    local items=(CLAUDE.md SETUP.md handoff.md install.sh .mcp.json .gitignore \
+                 .gmd .claude docs workflow tools scripts)
+    local it
+    for it in "${items[@]}"; do
+      [ -e "$TEMPLATE_ROOT/$it" ] || continue
+      if [ -e "$PROJECT_ROOT/$it" ]; then ok "kept existing: $it"; continue; fi
+      cp -R "$TEMPLATE_ROOT/$it" "$PROJECT_ROOT/$it" && ok "added: $it"
+    done
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # GMD — bundled. Just make the tooling executable and smoke-test the linter.
@@ -172,7 +218,7 @@ install_openwolf() {
     npm install -g openwolf && ok "installed via npm" || { warn "npm install -g openwolf failed"; FAILED+=("openwolf"); return; }
   fi
   # Initialize .wolf/ in this project (creates buglog, anatomy, and wires hooks).
-  if [ ! -d "$ROOT/.wolf" ]; then
+  if [ ! -d ".wolf" ]; then
     openwolf init >/dev/null 2>&1 && ok "initialized .wolf/ (openwolf init)" \
       || warn "run 'openwolf init' in the project root to finish setup"
   else
@@ -182,7 +228,11 @@ install_openwolf() {
 }
 
 # ---- run -------------------------------------------------------------------
-say "cat-herder template installer — root: $ROOT"
+say "cat-herder template installer"
+say "  template: $TEMPLATE_ROOT"
+say "  project:  $PROJECT_ROOT"
+scaffold_project
+cd "$PROJECT_ROOT"   # all per-project wiring (GMD lint, openwolf init) targets the project
 wire_gmd
 
 if [ "$MINIMAL" -eq 1 ]; then
@@ -199,11 +249,13 @@ fi
 # ---- summary ---------------------------------------------------------------
 echo
 say "Summary"
+ok    "project: $PROJECT_ROOT"
 [ ${#WIRED[@]}   -gt 0 ] && ok    "wired:   ${WIRED[*]}"
 [ ${#SKIPPED[@]} -gt 0 ] && say   "skipped: ${SKIPPED[*]}"
 [ ${#FAILED[@]}  -gt 0 ] && warn  "failed:  ${FAILED[*]} (see notes above)"
 echo
 echo "Notes:"
+echo "  • Project scaffolded at: $PROJECT_ROOT (existing files were preserved)."
 echo "  • rmx (refmatrix) needs Python >= 3.10 and git. For semantic recall add the dense"
 echo "    extra: pipx install \"refmatrix[dense] @ $RMX_GIT\"  — verify with: rmx --version"
 echo "  • Some integrations wire Claude Code hooks — restart Claude Code to load them."

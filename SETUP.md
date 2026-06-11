@@ -4,27 +4,26 @@
 documentation tooling, and an installer that wires the token-saving dependencies. Follow these
 steps to initialize a new project from it.
 
-## Step 1: Copy Template Files
+## Step 1: Scaffold a New Project
 
-Copy all files — **including dotfiles** (`.claude/`, `.gmd/`, `.mcp.json`, `.gitignore`) — into
-your new project root:
-
-```bash
-# -a preserves the hidden .claude/, .gmd/ dirs and dotfiles
-cp -a claude_template/. /path/to/new/project/
-cd /path/to/new/project/
-```
-
-## Step 1b: Run the Installer
-
-`./install.sh` installs and wires the recommended tooling (rmx, llm-tldr, rtk, caveman, openwolf)
-and the bundled GMD linter. It is idempotent and each dependency is optional:
+`./install.sh PROJECT_PATH` scaffolds the template into the target directory (created if it
+doesn't exist; **existing files are preserved, never overwritten**), then installs and wires the
+recommended tooling (rmx, llm-tldr, rtk, caveman, openwolf) and the bundled GMD linter. It is
+idempotent and each dependency is optional:
 
 ```bash
-./install.sh            # install + wire everything available for your platform
-./install.sh --minimal  # only wire the bundled GMD tooling
-./install.sh --help     # options (--skip-rmx, --skip-tldr, --skip-rtk, --skip-caveman, --skip-openwolf)
+./install.sh ../my-project          # scaffold into ../my-project, then wire it
+./install.sh ~/code/app --minimal   # scaffold, only wire the bundled GMD tooling
+./install.sh                        # no path → wire the template repo in place
+./install.sh --help                 # full usage + flags
 ```
+
+Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-rtk`, `--skip-caveman`, `--skip-openwolf`.
+
+> Scaffolding excludes the template's own `.git/`, memory state, and caches. The new project is
+> not a git repo — run `git init` there yourself when ready.
+
+Then `cd PROJECT_PATH` to continue.
 
 > **rmx** ([refmatrix](https://github.com/tangentland/refmatrix)) is the lookup + GMD-memory
 > surface referenced in CLAUDE.md. It is a Python package (needs Python ≥ 3.10 and git) exposing
