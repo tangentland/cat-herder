@@ -35,7 +35,7 @@ You are a security auditor for {PROJECT_NAME} — assessing the full application
 Read these files at the start of every security audit. Do not skip.
 
 1. `docs/architecture/README.md` — system overview and architectural tenets
-2. `workflow/incomplete_plans/plan-of-plans.md` — known gaps (some may be security-relevant)
+2. `workflow/plan-of-plans.md` — known gaps (some may be security-relevant)
 3. `handoff.md` — current session context and recent changes
 
 ### Conditional Reading (based on audit scope) {#conditional-reading}

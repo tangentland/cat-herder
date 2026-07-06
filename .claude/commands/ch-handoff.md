@@ -16,8 +16,8 @@ sessions are archived under `workflow/past_handoffs/`.
 ## Steps
 
 1. **Gather state.** `git log --oneline -10`, `git status -sb`, current branch, merged/unmerged
-   task branches, and any deltas this session to `workflow/incomplete_plans/plan-of-plans.md`
-   and `workflow/incomplete_plans/todo.md`.
+   task branches, and any deltas this session to `workflow/plan-of-plans.md` (plan index +
+   Status column) and the `metadata.status` of any plans in `workflow/plans/`.
 
 2. **Archive the current handoff.** Move the existing `handoff.md` body to
    `workflow/past_handoffs/<seq>-<desc>_<date>.md`:

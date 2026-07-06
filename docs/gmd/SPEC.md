@@ -1,11 +1,20 @@
-# GMD v0.1 — Graph Markdown Conformance Spec
+---
+gmd: "0.1"
+id: gmd-spec
+title: "GMD v0.1 — Graph Markdown Conformance Spec"
+tags: [gmd, spec, reference]
+metadata:
+  node_type: spec
+---
+
+# GMD v0.1 — Graph Markdown Conformance Spec {#root}
 
 **Graph Markdown.** A markdown-compatible convention for documents that carry typed relations and stable addressability. Designed to replace plain Markdown in Claude projects (CLAUDE.md, SKILL.md, memory files, notes) while remaining readable in any Markdown viewer.
 
 Status: draft v0.1
 Date: 2026-05-16
 
-## 1. File
+## 1. File {#file}
 
 - Extension: `.gmd` (preferred) or `.md` when filename is hardcoded by tooling (e.g. `CLAUDE.md`, `SKILL.md`, `MEMORY.md`).
 - Encoding: UTF-8, LF line endings.
@@ -14,7 +23,7 @@ Date: 2026-05-16
 - Any non-GMD-aware reader MUST be able to render the file as Markdown without error.
 - A document is recognized as GMD by the presence of `gmd:` in its frontmatter, regardless of file extension.
 
-## 2. Frontmatter
+## 2. Frontmatter {#frontmatter}
 
 YAML frontmatter is optional. When present, it occupies the first block of the file, delimited by `---` lines.
 
@@ -30,7 +39,7 @@ Reserved keys:
 
 All other keys are user-defined and preserved verbatim.
 
-## 3. Block IDs
+## 3. Block IDs {#block-ids}
 
 Any block-level element MAY carry a stable ID using the CommonMark attribute-list syntax:
 
@@ -57,7 +66,7 @@ Rules:
 
 A reader that does not understand `{#id}` MUST render the attribute list as plain text or hide it; either is conforming.
 
-## 4. References
+## 4. References {#references}
 
 Three reference forms, in order of preference:
 
@@ -67,7 +76,7 @@ Three reference forms, in order of preference:
 
 `[[...]]` syntax is permitted at any inline position. Renderers without wikilink support render it as literal text; this is conforming.
 
-## 5. Typed edges
+## 5. Typed edges {#typed-edges}
 
 Typed relations are declared with `rel:` lines. A `rel:` line is a single line at any block position that matches:
 
@@ -96,7 +105,7 @@ rel: depends-on -> [[#s1.1]]
 rel: supersedes -> [[old-design#stateless]] {confidence=high}
 ```
 
-## 6. Hierarchy
+## 6. Hierarchy {#hierarchy}
 
 The document tree is defined by CommonMark heading nesting. Non-heading blocks belong to the nearest preceding heading.
 
@@ -108,7 +117,7 @@ project-alpha/p1/p1.1
 
 This is derived, not authored. Authors reference by leaf ID only.
 
-## 7. Graph
+## 7. Graph {#graph}
 
 The graph layer is the union of:
 
@@ -118,7 +127,7 @@ The graph layer is the union of:
 
 Edge directionality is from source (the enclosing block) to target.
 
-## 8. Recommended verb vocabulary
+## 8. Recommended verb vocabulary {#verb-vocabulary}
 
 Open set — any kebab-case identifier is legal. The following verbs SHOULD be used where applicable for interoperability:
 
@@ -138,7 +147,7 @@ Open set — any kebab-case identifier is legal. The following verbs SHOULD be u
 
 Tools MAY warn on unrecognized verbs but MUST NOT reject the document.
 
-## 9. Memory and skills profile
+## 9. Memory and skills profile {#memory-skills-profile}
 
 When a GMD document is used as a Claude memory file or skill:
 
@@ -147,7 +156,7 @@ When a GMD document is used as a Claude memory file or skill:
 - Cross-memory links SHOULD use `[[memory-id#node-id]]` rather than slug-based wikilinks.
 - A `supersedes` edge marks a memory as replacing an older one. Loaders MAY filter superseded nodes from retrieval results.
 
-## 10. Index (non-normative)
+## 10. Index (non-normative) {#index}
 
 GMD-aware tooling MAY generate a sidecar index for retrieval acceleration. The index is derived and regenerable. Recommended location: `<file>.gmd.db` (DuckDB) alongside the document, gitignored.
 
@@ -172,7 +181,7 @@ CREATE TABLE embeddings (
 
 Index format is not part of conformance. Any tool may use any format.
 
-## 11. Conformance levels
+## 11. Conformance levels {#conformance-levels}
 
 | Level | Requirement |
 |-------|-------------|
@@ -183,11 +192,11 @@ Index format is not part of conformance. Any tool may use any format.
 
 A document is conforming if it parses as CommonMark and respects §3, §4, §5 syntax.
 
-## 12. Reserved syntax
+## 12. Reserved syntax {#reserved-syntax}
 
 Future versions may assign meaning to: `@id`, `^id`, `(())`, `==text==`, lines beginning with `:` or `>>`. Authors SHOULD NOT use these forms.
 
-## 13. Example
+## 13. Example {#example}
 
 ```markdown
 ---
@@ -222,7 +231,7 @@ rel: supersedes -> [[old-design#stateless]] {confidence=high}
 Facts written once, referenced by ID, never mutated in place.
 ```
 
-## 14. Open questions (v0.1 → v0.2)
+## 14. Open questions (v0.1 → v0.2) {#open-questions}
 
 - Inline `rel:` shorthand for high-density authoring?
 - Namespaces for cross-project doc IDs.

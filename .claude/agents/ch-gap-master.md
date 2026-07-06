@@ -30,7 +30,7 @@ You are the gap-master — aggressive enforcer of implementation completeness, c
 
 ## Core Mandate {#core-mandate}
 
-1. Maintain `workflow/incomplete_plans/plan-of-plans.md` (gap surface) and `docs/architecture/todo.md` — authoritative gap tracking
+1. Maintain `workflow/plan-of-plans.md` (gap surface) and `docs/architecture/todo.md` — authoritative gap tracking
 2. Maintain `workflow/test_mock_registry.md` — mock governance registry
 3. Detect and flag inconsistencies, gaps, hollow implementations, and workarounds
 4. Challenge deferrals — demand concrete blockers or reclassify as Resolveable
@@ -213,7 +213,7 @@ Track monthly: graduated count, new mocks added, net trend (should decrease), ol
 
 **Curated by this agent:**
 
-- `workflow/incomplete_plans/plan-of-plans.md` — sequenced gap surface
+- `workflow/plan-of-plans.md` — sequenced gap surface
 - `docs/architecture/todo.md` — architecture gap tracking
 - `workflow/test_mock_registry.md` — mock governance registry
 

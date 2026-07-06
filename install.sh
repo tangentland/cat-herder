@@ -7,12 +7,15 @@
 # recommended dependencies that make the discovery ladder, token savings, and
 # memory features work:
 #
-#   rmx       — refmatrix: lookup + GMD memory surface          (github.com/tangentland/refmatrix)
+#   rmx       — refmatrix: primary memory layer + GMD surface    (github.com/tangentland/refmatrix)
 #   llm-tldr  — token-efficient code analysis / call graphs     (PyPI)
 #   rtk       — Rust Token Killer: shrinks dev-command output    (github.com/rtk-ai/rtk)
 #   caveman   — ultra-compressed agent communication mode        (github.com/JuliusBrussee/caveman)
-#   openwolf  — token-conscious project brain + buglog            (npm: openwolf)
 #   gmd       — Graph Markdown tooling (bundled under tools/gmd)
+#
+# Re-running is a SAFE UPGRADE: the neutral baseline (agent defs, commands, templates,
+# scripts/sdd, *.example) is refreshed, but project-specific files (.claude/agents/*.local.md,
+# a filled .claude/PROJECT_PROFILE.md, .claude/hooks/hooks.env) are preserved, never clobbered.
 #
 # With no PROJECT_PATH the installer wires the template repo in place. Given a
 # path, it scaffolds there and wires that project. Idempotent and safe to re-run.
@@ -20,8 +23,8 @@
 # Usage:
 #   ./install.sh                      # wire the template repo in place
 #   ./install.sh ../my-project        # scaffold into ../my-project, then wire it
-#   ./install.sh ~/code/app --minimal # scaffold, only wire bundled GMD tooling
-#   ./install.sh --skip-openwolf --skip-caveman
+#   ./install.sh ~/code/app --minimal # scaffold, only wire bundled GMD + SDD tooling
+#   ./install.sh --skip-caveman
 #   ./install.sh --help
 #
 set -euo pipefail
@@ -29,7 +32,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"   # template source (where this script lives)
 
 # ---- options ---------------------------------------------------------------
-SKIP_RMX=0; SKIP_TLDR=0; SKIP_RTK=0; SKIP_CAVEMAN=0; SKIP_OPENWOLF=0; MINIMAL=0
+SKIP_RMX=0; SKIP_TLDR=0; SKIP_RTK=0; SKIP_CAVEMAN=0; MINIMAL=0
 PROJECT_DIR=""
 for arg in "$@"; do
   case "$arg" in
@@ -38,7 +41,6 @@ for arg in "$@"; do
     --skip-tldr)      SKIP_TLDR=1 ;;
     --skip-rtk)       SKIP_RTK=1 ;;
     --skip-caveman)   SKIP_CAVEMAN=1 ;;
-    --skip-openwolf)  SKIP_OPENWOLF=1 ;;
     -h|--help)
       sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
@@ -117,6 +119,29 @@ wire_gmd() {
 }
 
 # ---------------------------------------------------------------------------
+# SDD chain + hooks. Make scripts executable and seed project-specific config from
+# the shipped *.example files — ONLY when absent, so a re-run upgrades the neutral
+# baseline without clobbering a project's customization (see D9 in the merge plan).
+# ---------------------------------------------------------------------------
+wire_sdd() {
+  say "Wiring SDD scripts + enforcement hooks (scripts/sdd/, .claude/hooks/)"
+  chmod +x scripts/sdd/*.sh .claude/hooks/*.sh 2>/dev/null || true
+  # Seed hooks.env from the example only if the project has not created one.
+  if [ ! -f ".claude/hooks/hooks.env" ] && [ -f ".claude/hooks/hooks.env.example" ]; then
+    cp ".claude/hooks/hooks.env.example" ".claude/hooks/hooks.env" && ok "seeded .claude/hooks/hooks.env (edit for this project)"
+  else
+    ok ".claude/hooks/hooks.env preserved (or no example present)"
+  fi
+  if scripts/sdd/create-new-feature.sh --help >/dev/null 2>&1; then
+    ok "SDD scripts ready — start a feature with /ch-specify"
+    WIRED+=("sdd")
+  else
+    warn "SDD scripts present but --help smoke-test failed."
+    FAILED+=("sdd")
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # rmx / refmatrix (github.com/tangentland/refmatrix). Python package exposing the
 # `rmx` console script. Prefer an isolated install (pipx / uv tool) straight from
 # git; fall back to pip --user. Requires Python >= 3.10.
@@ -125,18 +150,29 @@ RMX_GIT="git+https://github.com/tangentland/refmatrix.git"
 install_rmx() {
   say "Installing rmx (refmatrix — lookup + GMD memory surface)"
   if have rmx && rmx --version >/dev/null 2>&1; then
-    ok "rmx already installed ($(rmx --version 2>/dev/null | head -1))"; WIRED+=("rmx"); return
+    ok "rmx already installed ($(rmx --version 2>/dev/null | head -1))"; WIRED+=("rmx"); wire_rmx_hooks; return
   fi
   if have pipx; then
-    pipx install "$RMX_GIT" && { ok "installed via pipx"; WIRED+=("rmx"); return; }
+    pipx install "$RMX_GIT" && { ok "installed via pipx"; WIRED+=("rmx"); wire_rmx_hooks; return; }
   elif have uv; then
-    uv tool install "refmatrix @ $RMX_GIT" && { ok "installed via uv tool"; WIRED+=("rmx"); return; }
+    uv tool install "refmatrix @ $RMX_GIT" && { ok "installed via uv tool"; WIRED+=("rmx"); wire_rmx_hooks; return; }
   elif have pip3; then
-    pip3 install --user "$RMX_GIT" && { ok "installed via pip3 --user"; WIRED+=("rmx"); return; }
+    pip3 install --user "$RMX_GIT" && { ok "installed via pip3 --user"; WIRED+=("rmx"); wire_rmx_hooks; return; }
   fi
   warn "Could not install rmx — install pipx or uv, then: pipx install \"$RMX_GIT\""
   warn "  (for semantic recall, add the dense extra: pipx install \"refmatrix[dense] @ $RMX_GIT\")"
   FAILED+=("rmx")
+}
+
+# Wire rmx's git hooks (post-commit/merge/checkout → rmx sync). The Claude Code hooks are
+# already committed in .claude/settings.json (guarded), so this only installs git-side hooks.
+wire_rmx_hooks() {
+  have rmx || return
+  if rmx install-hooks --apply >/dev/null 2>&1; then
+    ok "wired rmx git hooks (rmx install-hooks --apply)"
+  else
+    warn "run 'rmx install-hooks --apply' in the project to wire git-side sync hooks"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -204,46 +240,23 @@ install_caveman() {
 }
 
 # ---------------------------------------------------------------------------
-# openwolf (npm: openwolf). Global install, then init .wolf/ in this project.
-# ---------------------------------------------------------------------------
-install_openwolf() {
-  say "Installing openwolf (token-conscious project brain)"
-  if ! have npm; then
-    warn "npm required — install Node.js, then: npm install -g openwolf"
-    FAILED+=("openwolf"); return
-  fi
-  if have openwolf; then
-    ok "openwolf already installed ($(openwolf --version 2>/dev/null))"
-  else
-    npm install -g openwolf && ok "installed via npm" || { warn "npm install -g openwolf failed"; FAILED+=("openwolf"); return; }
-  fi
-  # Initialize .wolf/ in this project (creates buglog, anatomy, and wires hooks).
-  if [ ! -d ".wolf" ]; then
-    openwolf init >/dev/null 2>&1 && ok "initialized .wolf/ (openwolf init)" \
-      || warn "run 'openwolf init' in the project root to finish setup"
-  else
-    ok ".wolf/ already present"
-  fi
-  WIRED+=("openwolf")
-}
-
 # ---- run -------------------------------------------------------------------
 say "cat-herder template installer"
 say "  template: $TEMPLATE_ROOT"
 say "  project:  $PROJECT_ROOT"
 scaffold_project
-cd "$PROJECT_ROOT"   # all per-project wiring (GMD lint, openwolf init) targets the project
+cd "$PROJECT_ROOT"   # all per-project wiring (GMD lint, SDD scripts) targets the project
 wire_gmd
+wire_sdd
 
 if [ "$MINIMAL" -eq 1 ]; then
   say "--minimal: skipping external dependencies"
-  SKIPPED+=("rmx" "llm-tldr" "rtk" "caveman" "openwolf")
+  SKIPPED+=("rmx" "llm-tldr" "rtk" "caveman")
 else
   [ "$SKIP_RMX" -eq 1 ]      && SKIPPED+=("rmx")      || install_rmx
   [ "$SKIP_TLDR" -eq 1 ]     && SKIPPED+=("llm-tldr") || install_tldr
   [ "$SKIP_RTK" -eq 1 ]      && SKIPPED+=("rtk")      || install_rtk
   [ "$SKIP_CAVEMAN" -eq 1 ]  && SKIPPED+=("caveman")  || install_caveman
-  [ "$SKIP_OPENWOLF" -eq 1 ] && SKIPPED+=("openwolf") || install_openwolf
 fi
 
 # ---- summary ---------------------------------------------------------------

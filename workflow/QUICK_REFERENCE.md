@@ -1,6 +1,15 @@
-# Quick Reference
+---
+gmd: "0.1"
+id: QUICK_REFERENCE
+title: "Quick Reference"
+tags: [reference]
+metadata:
+  node_type: doc
+---
 
-## Docker Commands (ALL commands in Docker — never on host)
+# Quick Reference {#root}
+
+## Docker Commands (ALL commands in Docker — never on host) {#docker-commands}
 
 ```bash
 docker compose up -d                                                                                     # Start
@@ -9,21 +18,21 @@ docker compose exec dev bash -c "/opt/{pkg}-venv/bin/python -m ruff check . 2>&1
 docker compose exec dev bash -c "/opt/{pkg}-venv/bin/python -m mypy src/{pkg} 2>&1 | tee /test-output/mypy.log" # Types
 ```
 
-## Reading Test Output (from host)
+## Reading Test Output (from host) {#reading-test-output}
 
 ```bash
 tail -20 docker/test-output/pytest.log    # Summary
 cat docker/test-output/pytest.log          # Full
 ```
 
-## Git Workflow
+## Git Workflow {#git-workflow}
 
 ```bash
 git checkout -b task-X.Y-description main    # New branch per task
 git checkout main && git merge --no-ff task-X.Y-description  # Merge when complete
 ```
 
-## Quality Gates (Before Commit)
+## Quality Gates (Before Commit) {#quality-gates}
 
 1. Implementation summary written to `workflow/implementation_summaries/<task-name>.md`
 2. Tests pass in Docker — ALL tests including system-dependent tests
@@ -37,7 +46,7 @@ git checkout main && git merge --no-ff task-X.Y-description  # Merge when comple
 10. Contract test exists for new UI-facing response shapes
 11. Cleanup phase completed after implementation chunk (if applicable)
 
-## Key Conventions
+## Key Conventions {#key-conventions}
 
 - Line length: 100 characters (Black)
 - Strict type hints (mypy strict)
@@ -47,41 +56,46 @@ git checkout main && git merge --no-ff task-X.Y-description  # Merge when comple
 - Write decisions to files immediately — never defer to session end
 - New prose docs are GMD — lint with `./scripts/lint-gmd.sh` (zero errors before commit)
 
-## Lookup Priority
+## Lookup Priority {#lookup-priority}
 
 | Need | Consult First | Then |
 |------|---------------|------|
 | Prior work | `handoff.md` + `workflow/past_handoffs/` | Indexes |
-| Code structure | `docs/CODEBASE_INDEX.md` | Source files |
+| Code structure | `rmx context <symbol>` / `rmx grep` | Source files |
 | Architecture | `docs/architecture/ARCHITECTURE_INDEX.md` | Architecture docs |
 | Patterns | `workflow/QUICK_REFERENCE.md` | `workflow/PATTERNS.md` |
 | Symbol / call graph | `rmx context <symbol>` → `tldr` | `rmx grep` → raw grep |
 | GMD authoring | `docs/gmd/PRIMER.md` | `docs/gmd/SPEC.md` |
 | Gaps | `docs/architecture/todo.md` | — |
 | Design research | `docs/architecture/explorations/` | Exploration docs |
-| Active plans | `workflow/incomplete_plans/plan-of-plans.md` | `workflow/incomplete_plans/todo.md` |
-| Approved task specs | `workflow/plans/<plan>-tasks/` | Plan file in `workflow/plans/` |
+| Active plans | `workflow/plan-of-plans.md` (index + sequence + Status) | `workflow/plans/` |
+| Approved task specs | `workflow/plans/<plan>-tasks/` | Plan file in `workflow/plans/` (`status: approved`) |
 
-## Session Start Checklist
+## Session Start Checklist {#session-start-checklist}
 
 1. Read `handoff.md`
-2. Read `workflow/incomplete_plans/plan-of-plans.md` for what to implement next
+2. Read `workflow/plan-of-plans.md` for what to implement next
 3. Read `docs/architecture/ARCHITECTURE_INDEX.md`
 4. Read `docs/architecture/README.md` for architecture overview
 5. Verify git state matches handoff
 6. Check `docs/architecture/todo.md`
-7. If implementing: read active plan from `workflow/plans/` or `workflow/incomplete_plans/`
+7. If implementing: read the active plan from `workflow/plans/` (stage = its `metadata.status`)
 
-## Planning Pipeline (Three-Stage Lifecycle)
+## Planning Pipeline (Status-Tracked Lifecycle) {#planning-pipeline}
 
 ```
 Exploration (research) → Proposed Plan (decisions) → ADR (if architectural) → Task Specs → Implementation
 ```
 
-**Stage 1 — Drafting:** `workflow/incomplete_plans/<plan-name>.md`
-**Stage 2 — Approved:** `workflow/plans/<plan-name>.md` + `workflow/plans/<plan>-tasks/`
-**Stage 3 — Completed:** `workflow/completed_plans/<plan-name>.md`
+All plans live permanently in `workflow/plans/<plan-name>.md`; the stage is the `metadata.status`
+frontmatter field (plans never move directories):
 
-- Write proposed plans to `workflow/incomplete_plans/` BEFORE presenting questions
-- After plan approval: create ALL task spec files in `workflow/plans/<plan>-tasks/` before implementing any task
-- `workflow/incomplete_plans/plan-of-plans.md` is the source of truth for execution order
+**`drafting`** — no task specs yet
+**`approved`** — task specs written under `workflow/plans/<plan>-tasks/`, ready to implement
+**`in-progress`** — implementation underway
+**`completed`** — shipped and verified (file stays put)
+
+- Write proposed plans to `workflow/plans/` with `status: drafting` BEFORE presenting questions
+- After plan approval: create ALL task spec files in `workflow/plans/<plan>-tasks/` and set
+  `status: approved` before implementing any task
+- `workflow/plan-of-plans.md` is the index + source of truth for execution order

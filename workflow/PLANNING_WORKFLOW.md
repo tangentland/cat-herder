@@ -1,9 +1,18 @@
-# Planning & Exploration Workflow
+---
+gmd: "0.1"
+id: PLANNING_WORKFLOW
+title: "Planning & Exploration Workflow"
+tags: [planning, workflow]
+metadata:
+  node_type: doc
+---
+
+# Planning & Exploration Workflow {#root}
 
 This document contains the full planning workflow, exploration workflow, and plan approval
 gate. Referenced from CLAUDE.md.
 
-## Write Decisions Immediately (CRITICAL)
+## Write Decisions Immediately (CRITICAL) {#write-decisions-immediately}
 
 **Architectural discussions and decisions MUST be written to files as they happen — not
 deferred to task completion or session end.** Context compaction can erase unwritten
@@ -24,21 +33,22 @@ discussion at any time.
 
 **Pattern:** Discussion → Decision → Write to file → Continue discussion
 
-## Three-Stage Plan Lifecycle
+## Status-Tracked Plan Lifecycle {#status-tracked-plan-lifecycle}
 
-Plans move through three stages with corresponding directory locations:
+All plans live permanently in `workflow/plans/`. A plan never moves between directories — its
+stage is recorded ONLY by the `metadata.status` field in its GMD frontmatter:
 
-| Stage | Location | Meaning |
-|-------|----------|---------|
-| **Drafting** | `workflow/incomplete_plans/<plan-name>.md` | Design in progress, no task specs yet |
-| **Approved** | `workflow/plans/<plan-name>.md` + `workflow/plans/<plan>-tasks/` | Task specs written, ready to implement |
-| **Completed** | `workflow/completed_plans/<plan-name>.md` | Implementation done, archived |
+| Status | Location | Meaning |
+|--------|----------|---------|
+| **`drafting`** | `workflow/plans/<plan-name>.md` | Design in progress, no task specs yet |
+| **`approved`** | `workflow/plans/<plan-name>.md` + `workflow/plans/<plan>-tasks/` | Task specs written, ready to implement |
+| **`in-progress`** | `workflow/plans/<plan-name>.md` | Implementation underway |
+| **`completed`** | `workflow/plans/<plan-name>.md` | Implementation done and verified (file stays put) |
 
-**Meta-tracking files** (always in `workflow/incomplete_plans/`):
-- `plan-of-plans.md` — sequenced execution order (source of truth for what comes next)
-- `todo.md` — all plans indexed with status
+**Meta index:** `workflow/plan-of-plans.md` is the single index + sequenced execution order (with
+a Status column) — the source of truth for what comes next.
 
-## Exploration Workflow
+## Exploration Workflow {#exploration-workflow}
 
 Explorations are **research documents** that investigate a design space before decisions are
 made. They precede proposals in the pipeline:
@@ -55,12 +65,12 @@ or implementation. Use an exploration when:
 - The topic is large enough to warrant structured analysis before deciding
 - The user explicitly asks to explore a topic
 
-### Creating an Exploration
+### Creating an Exploration {#creating-an-exploration}
 
 1. **Create the file** at `docs/architecture/explorations/<topic>.md`
 2. **Write findings incrementally** as research proceeds — same compaction-safety rules apply
 
-### Exploration Lifecycle
+### Exploration Lifecycle {#exploration-lifecycle}
 
 | Status | Meaning |
 |--------|---------|
@@ -72,7 +82,7 @@ or implementation. Use an exploration when:
 Explorations are **never deleted** — they serve as the research record for why decisions
 were made.
 
-### Transitioning from Exploration to Proposal
+### Transitioning from Exploration to Proposal {#transitioning-from-exploration-to-proposal}
 
 When research is sufficient to frame decisions, create an explicit **Transition Summary**
 in the exploration document before creating the proposed plan.
@@ -82,29 +92,29 @@ in the exploration document before creating the proposed plan.
 1. Write the Transition Summary in the exploration file (What Survived, What Was Eliminated,
    Key Constraints, Open Questions, What Is NOT Moving Forward)
 2. Update the exploration status to `Transitioned to Proposal`
-3. Create the proposed plan at `workflow/incomplete_plans/<topic>.md`
-4. Update `workflow/incomplete_plans/todo.md` with the exploration → proposal link
+3. Create the proposed plan at `workflow/plans/<topic>.md` with `status: drafting`
+4. Update `workflow/plan-of-plans.md` with the exploration → proposal link
 5. Follow the Planning Mode Workflow below
 
-## Planning Mode Workflow (CRITICAL)
+## Planning Mode Workflow (CRITICAL) {#planning-mode-workflow}
 
 **All proposed plans MUST be written to disk BEFORE presenting questions to the user.**
 
-### Before Asking Questions
+### Before Asking Questions {#before-asking-questions}
 
-1. **Write the proposed plan to disk** at `workflow/incomplete_plans/<topic>.md`
+1. **Write the proposed plan to disk** at `workflow/plans/<topic>.md` with `status: drafting`
    - Include: context, options considered, proposed approach, open questions
    - Each open question gets its own numbered section with options
    - Mark all questions as `**Status: OPEN**`
 
 2. **Append a reference** to `handoff.md`:
    ```
-   **Active Proposed Plan:** [<topic>](workflow/incomplete_plans/<topic>.md) — <n> open questions
+   **Active Proposed Plan:** [<topic>](workflow/plans/<topic>.md) — <n> open questions
    ```
 
 3. **Then** present the plan and questions to the user
 
-### When the User Answers a Question
+### When the User Answers a Question {#when-the-user-answers-a-question}
 
 After **each individual answer** from the user:
 
@@ -114,26 +124,27 @@ After **each individual answer** from the user:
 
 **Pattern:** Ask question → User answers → Write answer to plan file → Continue
 
-### When the User Explores a Tangent
+### When the User Explores a Tangent {#when-the-user-explores-a-tangent}
 
 1. **Write exploration notes** to the proposed plan file (add a `### Discussion` subsection)
 2. **Do NOT wait** for the tangent to resolve before writing — write incrementally
 
-### When All Questions Are Resolved
+### When All Questions Are Resolved {#when-all-questions-are-resolved}
 
-1. Update plan file status to `Accepted` (or `Revised` if approach changed)
+1. Update the plan file's discussion status to `Accepted` (or `Revised` if approach changed)
 2. Update `handoff.md` reference from "Active" to "Completed"
-3. Update `workflow/incomplete_plans/todo.md` with the completed plan entry
-4. **Immediately create ALL task spec files** (see Plan Approval Gate below)
-5. Move plan to `workflow/plans/<plan-name>.md` with task specs in `workflow/plans/<plan>-tasks/`
+3. Update `workflow/plan-of-plans.md` with the plan's status
+4. **Immediately create ALL task spec files** in `workflow/plans/<plan>-tasks/` (see Plan
+   Approval Gate below)
+5. Set the plan's frontmatter `status: approved` (the file stays at `workflow/plans/<plan-name>.md`)
 6. Then proceed to implementation
 
-## Plan Approval Gate (CRITICAL)
+## Plan Approval Gate (CRITICAL) {#plan-approval-gate}
 
 **After a plan is approved, ALL task spec files MUST be created BEFORE any implementation
 begins.**
 
-### Workflow: Plan Approved → Tasks Created → Implementation
+### Workflow: Plan Approved → Tasks Created → Implementation {#workflow-plan-approved-tasks-created-implementation}
 
 1. **Create ALL task spec files** for the plan immediately after approval:
    - Location: `workflow/plans/<plan>-tasks/task-N.M-description.md`
@@ -141,25 +152,25 @@ begins.**
    - Reference specific decisions from the proposed plan discussion
    - Capture dependencies between tasks
 
-2. **Move the plan** from `workflow/incomplete_plans/` to `workflow/plans/`:
+2. **Promote the plan** by editing its frontmatter `status: drafting` → `status: approved`
+   (the file stays at `workflow/plans/<plan-name>.md` — it does NOT move):
    - Plan file: `workflow/plans/<plan-name>.md`
    - Task specs: `workflow/plans/<plan>-tasks/`
    - Verify task count matches
 
 3. **Update tracking files**:
-   - `workflow/incomplete_plans/todo.md` — mark plan as "Approved → workflow/plans/"
-   - `workflow/incomplete_plans/plan-of-plans.md` — update status
+   - `workflow/plan-of-plans.md` — set the plan's Status to `approved`
    - `handoff.md` — note that task specs are ready for implementation
 
 4. **Gate**: Do NOT start implementing Task N.1 until all task specs exist on disk
 
-### Why This Matters
+### Why This Matters {#why-this-matters}
 
 Task specs serve as **self-contained implementation briefs**. When a new session starts
 Task N.3, the task spec file contains everything needed — requirements, architecture
 references, decisions, files to touch — without needing to reconstruct planning context.
 
-## Templates
+## Templates {#templates}
 
 All templates are in `workflow/templates/`:
 

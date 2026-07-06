@@ -97,3 +97,8 @@ memory.*
 .wolf/
 .tldr/
 .rtk/
+
+# NOTE: per-agent project overlays (.claude/agents/<name>.local.md), .claude/PROJECT_PROFILE.md,
+# and .claude/hooks/hooks.env are PROJECT-SPECIFIC and MUST be committed once a project is
+# initialized — they are the project's customization of the neutral baseline. They are NOT
+# ignored here on purpose. The baseline template ships them as placeholders / *.example files.

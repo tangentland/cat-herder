@@ -1,0 +1,40 @@
+name: ci
+
+# TEMPLATE SKELETON — customize for this project, then remove this banner.
+# The cat-herder template mandates Docker-only test execution with output teed to logs
+# (see CLAUDE.md "Development Commands"). Fill in the steps below with your project's real
+# Docker commands and drop the `if: false` guards so the jobs actually run.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dev container
+        if: false # TODO: enable once docker-compose.yml exists
+        run: docker compose build dev
+
+      - name: Lint (ruff)
+        if: false # TODO: replace {project_package} and enable
+        run: docker compose run --rm dev bash -c "/opt/{project_package}-venv/bin/python -m ruff check ."
+
+      - name: Type check (mypy)
+        if: false # TODO
+        run: docker compose run --rm dev bash -c "/opt/{project_package}-venv/bin/python -m mypy src/{project_package}"
+
+      - name: Format check (black)
+        if: false # TODO
+        run: docker compose run --rm dev bash -c "/opt/{project_package}-venv/bin/python -m black --check . --line-length 100"
+
+      - name: Tests (pytest — ALL, none skipped)
+        if: false # TODO
+        run: docker compose run --rm dev bash -c "/opt/{project_package}-venv/bin/python -m pytest -v"
+
+      - name: Placeholder gate
+        run: echo "CI skeleton — enable the guarded steps above once the project's Docker env exists."

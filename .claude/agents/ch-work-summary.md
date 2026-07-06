@@ -182,10 +182,10 @@ Before producing a report, always read:
 | File | Why |
 |------|-----|
 | `handoff.md` (latest) | Current state and context |
-| `workflow/incomplete_plans/plan-of-plans.md` | Execution sequence and dependencies |
+| `workflow/plan-of-plans.md` | Execution sequence and dependencies |
 | `workflow/plans/` | Active plan task specs |
 | The specific plan/task spec | The work being summarized |
-| `docs/CODEBASE_INDEX.md` | Code structure for backend linkage analysis |
+| `rmx context <symbol>` / `rmx grep` | Code structure for backend linkage analysis |
 | `docs/architecture/ARCHITECTURE_INDEX.md` | Architecture context for constraint identification |
 
 ---
