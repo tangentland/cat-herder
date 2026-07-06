@@ -43,7 +43,6 @@ Committed as `b1b9834` (130 files, +7944/-479). Full decision log D1–D12 in
 ## Next Steps {#next-steps}
 
 - Push `unified-baseline-merge` and open/merge to `main` when ready.
-- Optional deferred: p20-0 guardrail compiler (memory→action classifier) — not ported.
 - Optional: GMD-ify the one historical `past_handoffs/001` (currently the sole non-GMD warn).
 - On any real project: run `./install.sh <path>`, fill `PROJECT_PROFILE.md` + `hooks.env`,
   create `<agent>.local.md` overlays, then `/ch-constitution` → `/ch-specify`.

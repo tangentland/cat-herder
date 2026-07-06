@@ -158,7 +158,9 @@ Deliverables:
    `PLAN_GOVERNANCE.md`. Add `workflow/specs/` to `INDEX.md` + doc hierarchy in CLAUDE.md.
 3. Add p20-0 guardrail compiler (cliquedb) as OPTIONAL under `.claude/p20-0/` +
    `guardrails/` memory dir; document in SETUP.md; wire SessionStart compile hook (gated on
-   presence).
+   presence). **DONE** — self-contained `.claude/p20-0/` (compiler + validate.py RED oracle +
+   golden_cases + 3 universal seed guardrails); compile→validate GREEN 12/12, idempotent;
+   SessionStart hook gated on `p20-0` dir + rmx. cliquedb DB-lane guardrails dropped as project-specific.
 4. Session-state command suite (cliquedb/refmatrix): `.claude/commands/{save-state,recall-state,
    commit-state,detour,return,stash,stash-list,stash-pop}.md` — rmx-backed; document as
    rmx-dependent.
