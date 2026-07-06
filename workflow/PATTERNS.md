@@ -1,17 +1,26 @@
-# Code Patterns
+---
+gmd: "0.1"
+id: PATTERNS
+title: "Code Patterns"
+tags: [reference]
+metadata:
+  node_type: doc
+---
+
+# Code Patterns {#root}
 
 Common patterns used throughout the codebase. Copy-paste these to avoid re-reading source files.
 
-## Ground Rules
+## Ground Rules {#ground-rules}
 
 1. **No mocks in production code** — all `src/` code must be fully concrete. No stubs, no
    `NotImplementedError`, no placeholder logic. If it can't be real, it doesn't exist yet.
 2. **Mocks only in tests** — `tests/` may mock external services (databases, APIs, hardware).
 3. **Tech stack** — see `TECH_STACK_DECISIONS.md` for approved libraries and rationale.
 
-## Testing Patterns
+## Testing Patterns {#testing-patterns}
 
-### Pytest Async Test
+### Pytest Async Test {#pytest-async-test}
 ```python
 import pytest
 
@@ -21,7 +30,7 @@ async def test_async_function():
     assert result is not None
 ```
 
-### Pytest Fixture
+### Pytest Fixture {#pytest-fixture}
 ```python
 import pytest
 
@@ -30,7 +39,7 @@ def sample_config():
     return {"key": "value", "enabled": True}
 ```
 
-### FastAPI Test Client
+### FastAPI Test Client {#fastapi-test-client}
 ```python
 from httpx import ASGITransport, AsyncClient
 
@@ -43,9 +52,9 @@ async def client():
         yield ac
 ```
 
-## FastAPI Patterns
+## FastAPI Patterns {#fastapi-patterns}
 
-### Dependency Injection
+### Dependency Injection {#dependency-injection}
 ```python
 from fastapi import Depends
 from typing import Annotated
@@ -60,7 +69,7 @@ async def list_items(db: DB):
     return await db.fetch_all("SELECT * FROM items")
 ```
 
-### Error Responses
+### Error Responses {#error-responses}
 ```python
 from fastapi import HTTPException
 
@@ -71,9 +80,9 @@ def not_found(resource: str, id: str):
     )
 ```
 
-## Async Patterns
+## Async Patterns {#async-patterns}
 
-### Retry with Backoff
+### Retry with Backoff {#retry-with-backoff}
 ```python
 import asyncio
 from functools import wraps

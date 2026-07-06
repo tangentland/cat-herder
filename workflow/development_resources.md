@@ -1,16 +1,25 @@
-# Development Resources
+---
+gmd: "0.1"
+id: development_resources
+title: "Development Resources"
+tags: [reference]
+metadata:
+  node_type: doc
+---
+
+# Development Resources {#root}
 
 Inventory of available infrastructure and services. Consult this before implementing
 features — use what exists rather than creating workarounds.
 
-## Docker Services
+## Docker Services {#docker-services}
 
 | Service | Image | Port (host:container) | Purpose |
 |---------|-------|----------------------|---------|
 | dev | custom Dockerfile | — | Development container |
 | postgres | postgres:16 | 5433:5432 | PostgreSQL database |
 
-## Database
+## Database {#database}
 
 **PostgreSQL 16** available in Docker compose.
 
@@ -18,7 +27,7 @@ features — use what exists rather than creating workarounds.
 |--------|--------|---------|
 | public | *(define as migrations are added)* | Application data |
 
-## Environment Variables
+## Environment Variables {#environment-variables}
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
@@ -28,7 +37,7 @@ features — use what exists rather than creating workarounds.
 | `KAGI_API_KEY` | Optional | Web search via onmisearch |
 | `EXA_API_KEY` | Optional | Web search via onmisearch |
 
-## Test Infrastructure
+## Test Infrastructure {#test-infrastructure}
 
 | Tool | Location | Notes |
 |------|----------|-------|
@@ -38,13 +47,12 @@ features — use what exists rather than creating workarounds.
 | mypy | Docker + local | Type checker |
 | black | Docker + local | Formatter |
 
-## Planning & Documentation Infrastructure
+## Planning & Documentation Infrastructure {#planning-documentation-infrastructure}
 
 | Directory | Purpose |
 |-----------|---------|
-| `workflow/incomplete_plans/` | Draft plans (design phase, no task specs) |
-| `workflow/plans/` | Approved plans with task spec directories |
-| `workflow/completed_plans/` | Archived completed plans |
+| `workflow/plan-of-plans.md` | Plan index + sequenced execution order (Status column) |
+| `workflow/plans/` | All plans, permanently + `<plan>-tasks/` spec dirs; stage = `metadata.status` (`drafting` → `approved` → `in-progress` → `completed`) |
 | `docs/architecture/` | Architecture docs, ADRs, explorations |
 | `workflow/implementation_summaries/` | Per-task implementation summaries |
 | `workflow/review-output/` | Agent review output files |

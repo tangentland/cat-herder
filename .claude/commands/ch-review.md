@@ -31,12 +31,12 @@ Dispatch in parallel:
 ## Phase 3 — Gaps & Concreteness {#phase-3}
 
 - `ch-gap-master` — no mocks/stubs/workarounds in `src/`; `docs/architecture/todo.md` and
-  `workflow/incomplete_plans/plan-of-plans.md` current; mock registry updated.
+  `workflow/plan-of-plans.md` current; mock registry updated.
 
 ## Phase 4 — Documentation {#phase-4}
 
-- `ch-doc-writer` — indexes accurate (`docs/CODEBASE_INDEX.md`,
-  `docs/architecture/ARCHITECTURE_INDEX.md`), `handoff.md` updated, docs suite current.
+- `ch-doc-writer` — indexes accurate (`docs/architecture/ARCHITECTURE_INDEX.md`),
+  `handoff.md` updated, docs suite current.
 
 ## Triage {#triage}
 

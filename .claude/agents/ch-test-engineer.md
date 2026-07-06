@@ -43,7 +43,7 @@ Focus: testability, coverage strategy, mock governance, edge cases, test infrast
 ## Mandatory Reading Before Every Review {#mandatory-reading-before-every-review}
 
 1. `workflow/test_mock_registry.md` — mock governance
-2. `workflow/incomplete_plans/plan-of-plans.md` — known gaps
+2. `workflow/plan-of-plans.md` — known gaps
 3. `workflow/implementation_summaries/` (latest) — current context
 4. `docs/architecture/ARCHITECTURE_INDEX.md` — architecture navigation
 

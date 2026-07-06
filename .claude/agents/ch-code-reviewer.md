@@ -36,7 +36,7 @@ Read these files at the start of every review — do not skip:
 
 1. **`docs/architecture/README.md`** — architectural overview and tenets
 2. **`docs/architecture/ARCHITECTURE_INDEX.md`** — navigation to ADRs and design docs
-3. **`workflow/incomplete_plans/plan-of-plans.md`** — known gaps (don't flag items already tracked)
+3. **`workflow/plan-of-plans.md`** — known gaps (don't flag items already tracked)
 
 ---
 
@@ -143,7 +143,7 @@ Read these files at the start of every review — do not skip:
 
 | Pattern | Why | Fix |
 |---------|-----|-----|
-| `# TODO` without tracking | Untraceable gap | Add to `workflow/incomplete_plans/plan-of-plans.md` |
+| `# TODO` without tracking | Untraceable gap | Add to `workflow/plan-of-plans.md` |
 | Hardcoded magic numbers | Maintainability | Extract to named constant |
 | `any` type in TypeScript | Type safety | Define proper type |
 | Mock in tests without registry entry | Governance | Register in `workflow/test_mock_registry.md` |

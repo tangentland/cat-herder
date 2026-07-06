@@ -1,60 +1,62 @@
 ---
-Session Handoff for {PROJECT_NAME}
-Date: 2026-06-11
+gmd: "0.1"
+id: handoff
+title: "Session Handoff for {PROJECT_NAME}"
+tags: [handoff, session]
+metadata:
+  node_type: handoff
+---
 
-## Completed
+# Session Handoff for {PROJECT_NAME} {#root}
 
-- Ported the viascope `vs-bsd` runtime-integration auditor into the template as `ch-bsd`
-  (the bullshit detector), sanitized of all viascope-specific content.
-- New files:
-  - `.claude/agents/ch-bsd.md` — sanitized agent. Lint clean (`python3 tools/gmd/lint.py`).
-  - `.claude/commands/ch-bsd.md` — `/ch-bsd [commit range]` command (default `HEAD~1..HEAD`).
-- Wired into `CLAUDE.md`:
-  - Available Agents table — `@ch-bsd` row
-  - Useful Commands table — `/ch-bsd` row
-  - Session Start — new step 7: read `workflow/bullshit/` (unaddressed BULLSHIT = first priority)
-  - Quality Gates / Before Commit — new checklist line for `@ch-bsd`
+Date: 2026-07-06
 
-## Sanitization Applied (vs-bsd → ch-bsd)
+## Completed {#completed}
 
-- Kept "bullshit detector" in name/identity per user request.
-- Stripped: ADR catalog (0104-0107), M0-M8 decision-surface cheat-sheet, viascope-dev
-  container + `/opt/viascope-venv` two-python trap, `src/viascope/`, GraphQL/`ObserverRuntime`/
-  `ChannelConfig`/`supervisor.start_channel`/Guide internals, hardcoded domain stats.
-- Genericized checks: Observer→"Handler/Observer Registration", Channel→"Worker/Service
-  Startup", Guide→"Wiring"; frontend + E2E marked `(if applicable)` with `{Customize}` notes.
-- Template conventions: `model: inherit`, `tags: [agent, cat-herder]`, `{project_package}`
-  placeholders, `tools/gmd/lint.py`, `docker compose exec dev`, rmx/tldr gated "if available".
-- Kept intact (generic, high-value): cheap-fix detection, deferral-comment detection,
-  severity/escalation, `workflow/bullshit/` memory layers, leaderboard, GMD finding output.
+Unified `cat-herder` into the baseline Claude Code template — folded cliquedb (canonical),
+refmatrix/rmx (engine), viascope (historical), and grafted spec-kit's SDD flow with an ADR gate.
+Committed as `b1b9834` (130 files, +7944/-479). Full decision log D1–D12 in
+`workflow/plans/unified-baseline-merge.md`.
 
-## Git State
+- **SDD chain** — 8 `/ch-*` commands `constitution → specify → clarify → crucible → plan → tasks
+  → analyze → implement`; `/ch-crucible` is the ADR gate (dispatches `@ch-architect`). Backing
+  `scripts/sdd/`, GMD templates, `workflow/CONSTITUTION.md` gate.
+- **Agents** — +`ch-alignment`, `ch-implementer`, `gmd-curator`; refreshed `ch-architect`/`ch-bsd`.
+  Project-neutral + per-agent `.local.md` overlay + `.claude/PROJECT_PROFILE.md` (committed post-init).
+- **rmx-only memory** — `settings.json` swaps wolf→rmx hooks (guarded). STM: `focus summarize
+  --promote` at PreCompact/Stop, `focus context` on resume; agent STM ops via `refmatrix` MCP
+  tools (`rmx_focus_note`, `rmx_change_subject`, …). Curated enforcement hooks. OpenWolf DROPPED;
+  buglog → native `workflow/bug_registry.md`.
+- **Workflow** — single status-driven `workflow/plans/` (`metadata.status`, no file moves);
+  `plan-of-plans.md` = one index+sequence. Added `specs/`, TDD_GOVERNANCE, deferral+bug registries,
+  session-state commands.
+- **Docs** — full GMD transition (44 GMD docs, lint clean); instruction docs `CAPITALIZED.md`;
+  CODEBASE_INDEX dropped for rmx nav; `.mcp.json` +refmatrix/tldr; CI + gmd-lint workflows.
+- **Cross-project** — bus messages to refmatrix + cliquedb re: the `focus summarize --promote` bug
+  (they ship the same regime) + MCP-first STM (`proj:refmatrix:bugs`, `:feature`, `proj:cliquedb:hello`).
 
-- Not a git repository (this is the claude_template source). No commit made.
+## Git State {#git-state}
 
-## Next Steps
+- Branch `unified-baseline-merge`, HEAD `b1b9834`. Working tree clean. **Push pending** (user pushes).
+- Not merged to `main`.
 
-- Optional: init `.wolf/` (openwolf) if that toolchain is adopted — referenced by
-  `.claude/rules/openwolf.md` but not yet initialized.
-- Optional: port remaining viascope `vs-*` agents (vs-alignment, vs-refactor-expert,
-  vs-root-cause-analyzer, vs-gstreamer-validator, etc.) into `ch-*` template agents on demand.
-- The `workflow/bullshit/` directory is created on first `/ch-bsd` run; no seed needed.
+## Next Steps {#next-steps}
 
-## Past Sessions
+- Push `unified-baseline-merge` and open/merge to `main` when ready.
+- Optional deferred: p20-0 guardrail compiler (memory→action classifier) — not ported.
+- Optional: GMD-ify the one historical `past_handoffs/001` (currently the sole non-GMD warn).
+- On any real project: run `./install.sh <path>`, fill `PROJECT_PROFILE.md` + `hooks.env`,
+  create `<agent>.local.md` overlays, then `/ch-constitution` → `/ch-specify`.
+
+## Past Sessions {#past-sessions}
 
 | # | Session | Date | Archive |
 |---|---------|------|---------|
 | 001 | Template bootstrap | 2026-06-11 | workflow/past_handoffs/001-template-bootstrap_2026-06-11.md |
+| 002 | ch-bsd port | 2026-06-11 | workflow/past_handoffs/002-ch-bsd-port_2026-06-11.md |
 
-## User Preferences
+## Hand-Off Notes {#hand-off-notes}
 
-- When porting viascope `vs-*` agents into the template: sanitize all project-specific
-  content but preserve the agent's evocative name/identity (e.g. "bullshit detector").
-- Caveman communication mode active (full) for this session.
-
-## Hand-Off Notes
-
-- This is the claude_template source repo itself, not a bootstrapped project — `{PLACEHOLDER}`
-  values remain intentionally unexpanded.
-- `ch-bsd` is the first non-stock agent added beyond the template's stock `ch-*` set.
----
+- This is the cat-herder template source itself — `{PLACEHOLDER}` values remain unexpanded.
+- Source authority: cliquedb = canonical, refmatrix = rmx engine, viascope = historical only.
+- rmx STM subject for this work: `unified-baseline-merge` (promoted digest in durable memory).

@@ -1,0 +1,107 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; ( command -v rmx >/dev/null 2>&1 && ( rmx sync --flush-queue --async >/dev/null 2>&1 || true ; rmx primer --out \"$CLAUDE_PROJECT_DIR/.refmatrix/PRIMER.md\" >/dev/null 2>&1 || true ; rmx curator status --drain >/dev/null 2>&1 || true ) ) & disown"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && ( rmx focus context --top 15 2>/dev/null || true ; rmx memory recall --session-start --k 10 --scope both --json 2>/dev/null || true ) || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && ( rmx scan-prompt --max-tokens 1200 2>/dev/null || true ; rmx focus hook --event input 2>/dev/null || true ; rmx memory recall --stdin-json --k 5 --scope both --json 2>/dev/null || true ) || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-test-to-file.sh\" ] && \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-test-to-file.sh\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-rmx-grep.sh\" ] && \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-rmx-grep.sh\" || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; ( command -v rmx >/dev/null 2>&1 && python3 -c \"import json,sys,subprocess;d=json.load(sys.stdin);ti=d.get('tool_input') or {};paths=set();fp=ti.get('file_path');paths.add(fp) if isinstance(fp,str) else None;[paths.add(e.get('file_path')) for e in (ti.get('edits') or []) if isinstance(e,dict) and isinstance(e.get('file_path'),str)];[subprocess.run(['rmx','sync','--enqueue-only','-f',p],check=False) for p in paths if p]\" 2>/dev/null ) & disown"
+          },
+          {
+            "type": "command",
+            "command": "[ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/adr-gate.sh\" ] && \"$CLAUDE_PROJECT_DIR/.claude/hooks/adr-gate.sh\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Read|Bash|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && rmx focus hook --event tool 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; ( command -v rmx >/dev/null 2>&1 && rmx sync --flush-queue --async >/dev/null 2>&1 || true ) & disown"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; ( command -v rmx >/dev/null 2>&1 && ( rmx focus summarize --promote >/dev/null 2>&1 || true ; rmx sync --flush-queue --async >/dev/null 2>&1 || true ) || true ) & disown"
+          },
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && rmx focus hook --event say 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && ( rmx focus summarize --promote 2>/dev/null || true ; rmx memory recall --recent --since 1h --k 20 --scope both --json 2>/dev/null || true ) || true"
+          }
+        ]
+      }
+    ]
+  }
+}

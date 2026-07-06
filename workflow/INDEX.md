@@ -1,21 +1,30 @@
-# Workflow Index
+---
+gmd: "0.1"
+id: INDEX
+title: "Workflow Index"
+tags: [reference]
+metadata:
+  node_type: index
+---
+
+# Workflow Index {#root}
 
 Map of the `workflow/` process tree. `docs/` holds knowledge (architecture, guides,
 reference); `workflow/` holds process (plans, governance, templates, audits, summaries).
 
-## Planning
+## Planning {#planning}
 
 | Path | Purpose |
 |------|---------|
-| `incomplete_plans/plan-of-plans.md` | Sequenced execution order (source of truth) |
-| `incomplete_plans/todo.md` | All plans, indexed |
-| `incomplete_plans/` | Draft plans (no task specs yet) |
-| `plans/` | Approved plans + `<plan>-tasks/` spec dirs |
-| `completed_plans/` | Archived completed plans |
+| `plan-of-plans.md` | Plan index + sequenced execution order (Status column) — source of truth |
+| `plans/` | All plans, permanently + `<plan>-tasks/` spec dirs; stage = `metadata.status` (`drafting` → `approved` → `in-progress` → `completed`) |
+| `specs/` | Per-feature SDD artifact chain (`NNN-slug/{spec,plan,tasks}`) — see `specs/README.md` |
+| `constitution.md` | Governing principles; the SDD gate `/ch-plan` re-checks |
 | `PLANNING_WORKFLOW.md` | How to plan, explore, and gate approval |
 | `PLAN_GOVERNANCE.md` | Lifecycle, staleness, question-forcing |
+| `TDD_GOVERNANCE.md` | RED-first, mutation-gated test contract |
 
-## Reference
+## Reference {#reference}
 
 | Path | Purpose |
 |------|---------|
@@ -24,9 +33,11 @@ reference); `workflow/` holds process (plans, governance, templates, audits, sum
 | `TECH_STACK_DECISIONS.md` | Approved libraries + rationale |
 | `development_resources.md` | Available infrastructure inventory |
 | `test_mock_registry.md` | Mock governance registry |
+| `deferral_registry.md` | Deferred production functionality registry |
+| `bug_registry.md` | Known bugs, root causes, and fixes |
 | `templates/` | Document templates (task-spec, proposed-plan, exploration, handoff) |
 
-## Audit & Output
+## Audit & Output {#audit-output}
 
 | Path | Purpose |
 |------|---------|
