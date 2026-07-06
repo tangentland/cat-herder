@@ -16,6 +16,10 @@
           {
             "type": "command",
             "command": "export RMX_INVOCATION_SOURCE=hook; command -v rmx >/dev/null 2>&1 && ( rmx focus context --top 15 2>/dev/null || true ; rmx memory recall --session-start --k 10 --scope both --json 2>/dev/null || true ) || true"
+          },
+          {
+            "type": "command",
+            "command": "[ -d \"$CLAUDE_PROJECT_DIR/.claude/p20-0\" ] && command -v rmx >/dev/null 2>&1 && python3 \"$CLAUDE_PROJECT_DIR/.claude/p20-0/compile_guardrails.py\" >/dev/null 2>&1 || true"
           }
         ]
       }

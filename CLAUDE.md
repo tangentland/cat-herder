@@ -207,6 +207,14 @@ and wire them (see SETUP.md). All are optional — the workflow degrades gracefu
 | **rtk** | Shrinks dev-command output (60-90% fewer tokens) | Auto-rewrites commands via a Claude Code hook |
 | **caveman** | Ultra-compressed agent communication mode | Provides `/commit`, `/caveman*` |
 
+**Action guardrails (optional).** `.claude/p20-0/` compiles `guardrail`-type memories in
+`.claude/p20-0/guardrails/` into native `autoMode.{hard_deny,soft_deny,allow,environment}` arrays
+(`compile_guardrails.py`, re-run each SessionStart, validated by the `validate.py` RED oracle over
+`golden_cases.jsonl`). Add a guardrail = drop a new GMD memory with a fenced `guardrail:` block
+(`tier` + `rule`) in that dir and recompile — no new code (self-hardening). Ships 3 universal
+guardrails (off-machine externalize, uncommitted-revert → `hard_deny`; read-only recon → `allow`).
+Requires `rmx`; rules are inert unless the session runs in `auto` permission-mode.
+
 **Discovery ladder** (use indexes before raw search): `rmx context <symbol>` → `tldr` call-graph →
 `rmx grep` → raw `grep`/`Glob`. Also consult
 `docs/architecture/ARCHITECTURE_INDEX.md`, and `workflow/plan-of-plans.md`.
