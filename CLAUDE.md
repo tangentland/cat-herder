@@ -273,6 +273,16 @@ Templates are in `workflow/templates/` (task-spec, proposed-plan, exploration, h
 
 **Never explore blindly** — search indexes first.
 
+## First-Time Onboarding {#first-time-onboarding}
+
+**Before the first Session Start in a fresh clone, check whether this project has been onboarded.**
+It is an uninitialized template if literal placeholders remain — quick check:
+`grep -rl "{PROJECT_NAME}\|{project_package}" CLAUDE.md .mcp.json .claude/PROJECT_PROFILE.md`.
+If it matches, do NOT start normal work: surface it to the user, then follow
+[`docs/ONBOARDING.md`](docs/ONBOARDING.md) (install.sh → fill PROJECT_PROFILE → expand placeholders
+→ tune hooks.env → create `<agent>.local.md` overlays → `/ch-constitution` → commit). Run it once;
+after that, this section is a no-op and you proceed to Session Start.
+
 ## Session Start {#session-start}
 
 1. **Read handoff.md** for context from previous session
