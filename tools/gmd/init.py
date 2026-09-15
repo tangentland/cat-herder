@@ -100,7 +100,7 @@ zero errors. Warnings (unknown verbs, missing `gmd:` frontmatter) acceptable
 with rationale.
 """
 
-TEXT_VS_DOC_WRITER = """\
+TEXT_CH_DOC_WRITER = """\
 ## Output Format {#output-format}
 
 All persistent docs you author are **GMD**. See project CLAUDE.md
@@ -140,14 +140,14 @@ output. If a target genuinely doesn't exist yet, either create the stub or
 use external markdown link and note the dependency.
 """
 
-TEXT_VS_ALIGNMENT = """\
+TEXT_CH_ALIGNMENT = """\
 ## Output Format {#output-format}
 
 The `pseudocode/*.pseudo` files you maintain are NOT GMD — pseudocode has
 its own format. But every doc you author or amend ABOUT pseudocode is GMD.
 
 When you write or update:
-- ADR amendments → see §output-format of vs-doc-writer
+- ADR amendments → see §output-format of ch-doc-writer
 - Concept doc revisions → GMD frontmatter + anchors
 - Drift reports / actualization findings in `docs/alignment/*.md` → GMD
 
@@ -166,7 +166,7 @@ The ingester recognizes this convention. Without it, the supersession is
 invisible to the graph.
 """
 
-TEXT_VS_BSD = """\
+TEXT_CH_BSD = """\
 ## Output Format {#output-format}
 
 Findings in `docs/bullshit/*.md` are GMD. Each finding file:
@@ -202,9 +202,9 @@ links to suspected anti-pattern entries.
 """
 
 AGENT_TEMPLATES: dict[str, str] = {
-    "vs-doc-writer": TEXT_VS_DOC_WRITER,
-    "vs-alignment": TEXT_VS_ALIGNMENT,
-    "vs-bsd": TEXT_VS_BSD,
+    "ch-doc-writer": TEXT_CH_DOC_WRITER,
+    "ch-alignment": TEXT_CH_ALIGNMENT,
+    "ch-bsd": TEXT_CH_BSD,
 }
 
 GMD_CONFIG_YML = """\
