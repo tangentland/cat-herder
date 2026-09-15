@@ -67,3 +67,16 @@ Bundled under `tools/gmd/`:
 | `tools/gmd/gmd init <root>` | Scaffold a project for GMD authoring |
 | `tools/gmd/gmd slice <file> "<query>"` | Retrieve a relevant subset of a GMD doc |
 | `./scripts/lint-gmd.sh` | Lint `CLAUDE.md` + `docs/` with the right scope |
+| `tools/gmd/lint.py <file> --reconcile` | Lint one file with the whole repo + memory dir as resolution scope |
+
+The linter runs in two phases: **phase 1** (doc-level — duplicate `{#id}`, malformed
+`rel:`, dangling same-doc `[[#id]]`, frontmatter sanity) is always a hard error;
+**phase 2** (cross-doc `[[doc#id]]` resolution) is a hard error only when a directory
+is in scope, and downgrades to a warning for single-file targets so linting one new
+file never fails on links to docs outside the scan. `--reconcile` auto-discovers the
+repo root plus this project's Claude memory dir and forces phase 2, so a single-file
+lint still checks its cross-doc links for real. Memory files (`metadata.node_type:
+memory`) should declare a `metadata.type` from the canonical enum — `user`,
+`feedback`, `project`, `reference`, `impression`, `guardrail`, `decision`,
+`observation`, `note`, `curated`; anything else warns as `unknown-memory-type`
+(warn-only — it flags drift without failing the lint).

@@ -1,15 +1,33 @@
 #!/usr/bin/env python3
 """gmd lint — validate Graph Markdown documents.
 
-Checks:
-  - duplicate {#id} within a document
-  - dangling [[#id]] (local) and [[doc#id]] (cross-doc) references
-  - malformed rel: lines
-  - unknown verbs (warning only)
-  - frontmatter sanity (gmd version, id presence)
+Two phases:
+  Phase 1 (doc-level) — always hard errors. Per-file structure the author
+    controls: duplicate {#id}, malformed rel:, dangling SAME-DOC [[#id]],
+    frontmatter sanity. Runs for every target.
+  Phase 2 (cross-doc) — corpus resolution: dangling [[doc#id]] / wrong anchor
+    in another doc. These are hard errors ONLY when a directory/corpus is in
+    scope (the scan can actually see the targets). For single-file / file-list
+    targets they downgrade to WARNINGS, so linting one new file never throws
+    on links to docs outside the scan. CI lints the tree (dir → phase 2 on).
+
+Phase selection:
+  - default: AUTO — phase 2 on iff any target is a directory.
+  - --phase1 : force doc-level only (cross-doc unresolved → warning).
+  - --phase2 : force cross-doc errors (e.g. file targets + --scope corpus).
+  - --scope <path> : add files to the resolution set without reporting their
+    own issues (resolve cross-tree refs without scanning the whole tree).
+  - --reconcile : link-reconciliation mode. AUTO-DISCOVERS the corpus for each
+    target — walks up to the repo root (nearest ancestor with a `.git`), adds
+    that whole tree as resolution scope, and ALSO adds the project's Claude
+    memory dir (~/.claude/projects/<dashified-repo-path>/memory) when it exists
+    — then forces phase 2. Turns a single-file lint's "dangling because
+    unscanned" WARNINGS into real cross-doc checks: links that resolve anywhere
+    in the repo/memory corpus pass; only genuinely-missing targets error. Use
+    it to validate one file's cross-doc links without enumerating every --scope.
 
 Usage:
-  gmd lint <file-or-dir> [<file-or-dir> ...]
+  gmd lint <file-or-dir> [...] [--phase1|--phase2] [--reconcile] [--scope P]
 
 Exit codes:
   0 = no errors (warnings allowed)
@@ -35,6 +53,18 @@ RECOMMENDED_VERBS = {
     "encoded-as", "catalogs",
     # MEMORY-RULES memory-layer vocab.
     "related-to", "reinforces", "recalls",
+}
+
+# Canonical memory `metadata.type` enum (mirrors ~/.claude/MEMORY-RULES.md
+# #frontmatter). Files carrying `metadata.node_type: memory` should declare a
+# `metadata.type` drawn from this set. `guardrail` = enforceable action-policy
+# rule compiled into auto-mode (p20-0). This is a WARN-only gate: an unknown
+# type never fails lint (exit stays 0), so it can't regress other projects — it
+# only flags drift. `curated`/`observation`/`note`/`decision` are the
+# rmx-side sync-disk defaults and are accepted alongside the authored types.
+KNOWN_MEMORY_TYPES = {
+    "user", "feedback", "project", "reference", "impression", "guardrail",
+    "curated", "observation", "note", "decision",
 }
 
 ID_RE = re.compile(r"\{#([a-z0-9][a-z0-9._/-]*)([^}]*)\}")
@@ -143,6 +173,24 @@ def parse_doc(path: Path) -> tuple[Doc, list[Issue]]:
         )
         if fm.get("node_type") == "memory" or nested_node_type == "memory":
             doc.gmd_version = "0.1"
+
+    # Memory `metadata.type` enum check (WARN-only, never fails lint). The
+    # minimal frontmatter parser flattens nested `metadata.*` keys to the top
+    # level, so `metadata.type: guardrail` surfaces as fm["type"]. Only assess
+    # files that self-identify as memories.
+    _meta = fm.get("metadata")
+    _nested_node_type = _meta.get("node_type") if isinstance(_meta, dict) else None
+    if fm.get("node_type") == "memory" or _nested_node_type == "memory":
+        _mtype = fm.get("type")
+        if isinstance(_meta, dict) and _meta.get("type"):
+            _mtype = _meta.get("type")
+        if isinstance(_mtype, str) and _mtype and _mtype not in KNOWN_MEMORY_TYPES:
+            issues.append(Issue(
+                path, 1, "warn", "unknown-memory-type",
+                f"metadata.type `{_mtype}` not in known memory-type enum "
+                f"({', '.join(sorted(KNOWN_MEMORY_TYPES))})",
+            ))
+
     imports = fm.get("imports", [])
     if isinstance(imports, list):
         doc.imports = imports
@@ -246,10 +294,20 @@ def _norm_id(s: str) -> str:
     return s.replace("-", "_").lower()
 
 
-def resolve_refs(docs: dict[str, Doc], paths_by_id: dict[str, Doc]) -> list[Issue]:
+def resolve_refs(
+    docs: dict[str, Doc],
+    paths_by_id: dict[str, Doc],
+    cross_doc_severity: str = "error",
+) -> list[Issue]:
     # Build a normalized lookup table alongside the literal one so
     # legacy kebab `name:` ids match new snake `id:` ids and vice
     # versa. Literal hits take precedence.
+    #
+    # `cross_doc_severity` is the severity for PHASE-2 cross-doc misses
+    # (`dangling-doc`, `dangling-anchor`). "error" in corpus/dir mode;
+    # "warn" in single-file / file-list mode where the scan can't be
+    # expected to contain every referenced doc. Same-doc `[[#id]]`
+    # (`dangling-local`) is PHASE 1 — always an error.
     norm_by_id = {_norm_id(k): v for k, v in paths_by_id.items()}
     issues: list[Issue] = []
     for doc in docs.values():
@@ -264,16 +322,66 @@ def resolve_refs(docs: dict[str, Doc], paths_by_id: dict[str, Doc]) -> list[Issu
             target = paths_by_id.get(doc_id) or norm_by_id.get(_norm_id(doc_id))
             if target is None:
                 issues.append(Issue(
-                    doc.path, line_no, "error", "dangling-doc",
+                    doc.path, line_no, cross_doc_severity, "dangling-doc",
                     f"[[{raw}]] — no doc with id `{doc_id}` in scanned set",
                 ))
                 continue
             if anchor and anchor not in target.node_ids and anchor not in target.external_ids:
                 issues.append(Issue(
-                    doc.path, line_no, "error", "dangling-anchor",
+                    doc.path, line_no, cross_doc_severity, "dangling-anchor",
                     f"[[{raw}]] — doc `{doc_id}` has no anchor `{anchor}`",
                 ))
     return issues
+
+
+def _repo_root(path: Path) -> Path | None:
+    """Nearest ancestor (including path's own dir) containing a `.git` entry."""
+    start = path if path.is_dir() else path.parent
+    for p in [start, *start.parents]:
+        if (p / ".git").exists():
+            return p
+    return None
+
+
+def _claude_memory_dir(repo_root: Path) -> Path | None:
+    """The Claude memory dir for a repo, per the ~/.claude convention.
+
+    Claude Code slugifies the project abspath by replacing every
+    non-alphanumeric character with `-` (so `claude_tools` becomes
+    `claude-tools`), not just the slashes. Try that form first; keep the
+    old slash-only form as a fallback for dirs created by other tooling."""
+    import re as _re
+    base = Path.home() / ".claude" / "projects"
+    for slug in (_re.sub(r"[^A-Za-z0-9]", "-", str(repo_root)),
+                 str(repo_root).replace("/", "-")):
+        cand = base / slug / "memory"
+        if cand.is_dir():
+            return cand
+    return None
+
+
+def _discover_corpus(target_files: list[Path]) -> list[str]:
+    """--reconcile: auto-discover the resolution scope for each target.
+
+    Walk up from each target to its repo root (nearest ancestor with a
+    `.git`) and add that whole tree; also add the project's Claude memory
+    dir (GMD memories are part of the cross-doc corpus) when it exists.
+    Returns a deduped list of scope directories to feed the resolver, so
+    a single-file lint resolves its cross-doc links against the full repo
+    + memory corpus instead of warning on every unscanned target.
+    """
+    scopes: list[str] = []
+    seen: set[Path] = set()
+    for f in target_files:
+        root = _repo_root(f.resolve())
+        if root is None or root in seen:
+            continue
+        seen.add(root)
+        scopes.append(str(root))
+        mem = _claude_memory_dir(root)
+        if mem is not None and mem.is_dir():
+            scopes.append(str(mem))
+    return scopes
 
 
 def collect_files(targets: list[str]) -> list[Path]:
@@ -290,8 +398,8 @@ def collect_files(targets: list[str]) -> list[Path]:
     return out
 
 
-def _parse_args(argv: list[str]) -> tuple[list[str], list[str]]:
-    """Split argv into (targets, scope_paths).
+def _parse_args(argv: list[str]) -> tuple[list[str], list[str], int | None, bool]:
+    """Split argv into (targets, scope_paths, force_phase).
 
     `--scope <path>` (repeatable): files scanned for doc-id resolution
     only — refs from `targets` can resolve to anchors / doc-ids in
@@ -302,9 +410,14 @@ def _parse_args(argv: list[str]) -> tuple[list[str], list[str]]:
     the lint scan never crossed the tree boundary. With
     `--scope ~/proj/docs/`, the ref resolves and only memory-side
     issues surface in the output.
+
+    `--phase1` / `--phase2` override phase auto-detection (returned as
+    `force_phase`; None = auto = phase 2 iff a target is a directory).
     """
     targets: list[str] = []
     scopes: list[str] = []
+    force_phase: int | None = None
+    reconcile = False
     i = 1
     while i < len(argv):
         a = argv[i]
@@ -322,16 +435,28 @@ def _parse_args(argv: list[str]) -> tuple[list[str], list[str]]:
             scopes.append(a.split("=", 1)[1])
             i += 1
             continue
+        if a in ("--phase1", "--phase-1"):
+            force_phase = 1
+            i += 1
+            continue
+        if a in ("--phase2", "--phase-2"):
+            force_phase = 2
+            i += 1
+            continue
+        if a in ("--reconcile", "--reconcile-corpus"):
+            reconcile = True
+            i += 1
+            continue
         targets.append(a)
         i += 1
-    return targets, scopes
+    return targets, scopes, force_phase, reconcile
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 2
-    targets, scope_paths = _parse_args(argv)
+    targets, scope_paths, force_phase, reconcile = _parse_args(argv)
     if not targets:
         print(
             "gmd lint: at least one target file or directory required",
@@ -342,6 +467,10 @@ def main(argv: list[str]) -> int:
     if not target_files:
         print("gmd lint: no files matched", file=sys.stderr)
         return 2
+    # --reconcile: auto-discover the repo + memory corpus as resolution
+    # scope so a single-file lint checks its cross-doc links for real.
+    if reconcile:
+        scope_paths = list(scope_paths) + _discover_corpus(target_files)
     scope_files = collect_files(scope_paths) if scope_paths else []
     # Scope files supplement the resolution set but never produce
     # issues themselves. Deduplicate against target files so a path
@@ -394,11 +523,27 @@ def main(argv: list[str]) -> int:
     for d in docs.values():
         by_id_or_stem.setdefault(d.path.stem, d)
 
+    # Two-phase selection. Phase 2 (cross-doc errors) is on when a
+    # directory/corpus is in scope (the scan can see referenced docs),
+    # off for file-only targets so linting one new file never throws on
+    # links to docs outside the scan. --phase1/--phase2 override.
+    if force_phase == 1:
+        cross_doc = False
+    elif force_phase == 2:
+        cross_doc = True
+    elif reconcile:
+        # --reconcile implies phase 2 (the corpus is now loaded), unless the
+        # caller explicitly forced --phase1 above.
+        cross_doc = True
+    else:
+        cross_doc = any(Path(t).is_dir() for t in targets)
+    cross_doc_severity = "error" if cross_doc else "warn"
+
     # `resolve_refs` walks every doc in `docs` (which now includes
     # scope docs) and emits issues for any unresolved ref. Filter the
     # results to keep only issues whose source path is a target file —
     # scope files contribute resolution-only, not issue-reporting.
-    ref_issues = resolve_refs(docs, by_id_or_stem)
+    ref_issues = resolve_refs(docs, by_id_or_stem, cross_doc_severity)
     all_issues.extend(
         i for i in ref_issues if i.path.resolve() in target_paths
     )
@@ -412,6 +557,7 @@ def main(argv: list[str]) -> int:
     print(
         f"\ngmd lint: {len(target_files)} files, {len(docs)} GMD docs, "
         f"{len(errors)} errors, {len(warns)} warnings"
+        f" [phase {'2 cross-doc' if cross_doc else '1 doc-level'}]"
         + (
             f" (scope: +{len(scope_files)} doc(s) used for resolution only)"
             if scope_files else ""

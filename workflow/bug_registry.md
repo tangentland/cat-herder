@@ -41,7 +41,7 @@ The threshold is LOW — when in doubt, log it. Log an entry whenever:
 
 | ID | Symptom / error | File(s) | Root cause | Fix | Tags | Status | Seen |
 |----|-----------------|---------|------------|-----|------|--------|------|
-| _none yet_ | — | — | — | — | — | — | — |
+| bug-001 | `gmd init gmd-agents` silently skips every agent: `skip <path>: no template for 'ch-doc-writer'` | `tools/gmd/init.py` | `AGENT_TEMPLATES` was keyed by the pre-rename `vs-*` agent names, but the template's agents are named `ch-*`, so the frontmatter-`name` lookup never matched | Renamed the three keys and their `TEXT_VS_*` constants to `ch-doc-writer` / `ch-alignment` / `ch-bsd` | gmd, tooling, agent-rename, stale-vendor | fixed | 1 |
 
 <!--
 Entry conventions:
