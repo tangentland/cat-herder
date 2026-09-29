@@ -1,0 +1,39 @@
+# Self-tests for the template's own tooling (tune-project, install.sh scaffold, adr-gate,
+# statusline). Template-only: .scaffoldignore keeps this workflow and .selftest/ out of
+# scaffolded projects, and the hashFiles guard makes it a no-op anywhere .selftest/ is absent.
+name: template-selftest
+
+on:
+  push:
+    paths:
+      - "scripts/tune-project.py"
+      - "install.sh"
+      - ".scaffoldignore"
+      - ".claude/hooks/**"
+      - ".claude/statusline.sh"
+      - ".claude/PROJECT_PROFILE.md"
+      - ".selftest/**"
+      - ".github/workflows/template-selftest.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    if: ${{ hashFiles('.selftest/run.sh') != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.10" }   # tomllib-absent fallback path
+          - { os: ubuntu-latest, python: "3.13" }   # GNU date statusline path
+          - { os: macos-latest, python: "3.13" }    # BSD date statusline path
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Ensure jq
+        run: command -v jq || (sudo apt-get update && sudo apt-get install -y jq)
+      - name: Run self-tests
+        run: .selftest/run.sh -v

@@ -10,10 +10,15 @@ FILE_PATH="$(printf '%s' "$INPUT" | hook_json_field tool_input.file_path)"
 [ -z "$FILE_PATH" ] && exit 0
 printf '%s' "$FILE_PATH" | grep -qE "$ADR_GATE_FILE_RE" || exit 0
 # Only gate files under a configured source root (SRC_DIR may list several, space-separated).
+# Match against the repo-relative path so a same-named dir elsewhere (vendor/lib/, a nested
+# node_modules/x/lib/) never counts; set -f keeps the unquoted list from glob-expanding.
+REL_PATH="${FILE_PATH#"$HOOK_ROOT"/}"
 IN_SRC=0
+set -f
 for D in $SRC_DIR; do
-    case "$FILE_PATH" in *"/$D/"*|"$D/"*) IN_SRC=1; break ;; esac
+    case "$REL_PATH" in "$D"/*) IN_SRC=1; break ;; esac
 done
+set +f
 [ "$IN_SRC" -eq 1 ] || exit 0
 
 NEW="$(printf '%s' "$INPUT" | hook_json_field tool_input.content)"

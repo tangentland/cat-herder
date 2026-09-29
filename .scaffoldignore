@@ -1,0 +1,43 @@
+# .scaffoldignore — paths install.sh never copies from the template into a target project.
+# rsync --exclude-from syntax: a leading "/" anchors to the template root, a trailing "/"
+# matches directories only, other patterns match a name at any depth. The no-rsync fallback
+# in install.sh reads this same file, so both copy paths exclude exactly the same set.
+#
+# Runtime state describes the TEMPLATE repo, not the baseline — copying it poisons the target:
+#   .refmatrix/  rmx catalog, STM, queues, locks, logs: would seed the target's index with the
+#                template's content (rmx context/query/memory would answer about cat-herder)
+#   .tldr/       llm-tldr index of the template's code (target: tldr warm .)
+#   .agents/ .augment/ skills-lock.json
+#                caveman skill copies written by the caveman installer, which install.sh
+#                re-runs in the target; a stale copy would shadow the fresh install
+#   .claude/settings.local.json, .claude/scheduled_tasks.lock — per-user / per-session state
+
+# VCS, OS and language caches
+.git/
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# tool runtime state
+.memory.db*
+.memory.*
+memory.*
+/.refmatrix/
+/.tldr/
+/.wolf/
+/.rtk/
+/.agents/
+/.augment/
+/skills-lock.json
+/.claude/cam_local/
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+/.claude/hooks/hooks.env
+
+# template-only outputs and self-tests
+/workflow/review-output/
+/docker/test-output/
+/.selftest/
+/.github/workflows/template-selftest.yml
