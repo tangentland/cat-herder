@@ -39,12 +39,11 @@ Date: 2026-09-29
 
 ## Next Steps {#next-steps}
 
-- **User decisions pending** (`docs/architecture/todo.md`):
-  - GAP-003 statusline default-on vs opt-in (+ default reset zone).
-  - GAP-004 untrack + gitignore `.agents/`, `.augment/`, `skills-lock.json`, or document as vendored.
-  - GAP-005 write the ADR "project-fact ownership & install-time tuning" via `/ch-crucible`.
+- Decisions recorded 2026-09-29: statusline on by default (GAP-003); caveman dirs stay tracked
+  as vendored (GAP-004); ADR-0001 written for install-time tuning (GAP-005).
 - Resolveable gaps: GAP-001 per-language adr-gate declarations; GAP-002 baseline upgrade path;
-  GAP-006 `.refmatrix/` ignore for targets with an existing `.gitignore`.
+  GAP-006 `.refmatrix/` ignore for targets with an existing `.gitignore`; GAP-007 derive
+  hooks.env from the profile (`--sync-hooks`) so PROFILE is truly authoritative.
 - atlapi has no cat-herder install yet (user to decide); portal's own instance handles portal.
 
 ## Past Sessions {#past-sessions}

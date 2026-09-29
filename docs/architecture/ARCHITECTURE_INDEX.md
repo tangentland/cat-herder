@@ -24,7 +24,7 @@ Navigation hub for `{PROJECT_NAME}` architecture. Follow the wikilinks; do not g
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| _none yet_ | — | — | — |
+| [[adr-0001-project-fact-ownership-and-install-time-tuning#root]] | Project-fact ownership and install-time tuning | Accepted | 2026-09-29 |
 
 ## Concept Docs (`concepts/`) {#concepts}
 

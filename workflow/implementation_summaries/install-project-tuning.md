@@ -104,5 +104,5 @@ Initial manual verification:
 - Re-running install is not a baseline upgrade (todo GAP-002).
 - The tuner deliberately does not expand `CLAUDE.md`/`.mcp.json` placeholders — prose there
   mentions them literally; the agent does it during onboarding.
-- Awaiting decisions: statusline default-on (GAP-003), `.agents`/`.augment` tracking (GAP-004),
-  ADR for install-time tuning (GAP-005).
+- Decided 2026-09-29: statusline on by default (GAP-003); `.agents`/`.augment` vendored (GAP-004);
+  ADR-0001 records install-time tuning + fact ownership (GAP-005).
