@@ -34,7 +34,8 @@ this registry; `@ch-bsd` flags stale deferrals.
 
 | Item | Location | Classification | Graduation Trigger | Owner |
 |------|----------|----------------|--------------------|-------|
-| _none yet_ | — | — | — | — |
+| adr-gate inert for non-class languages | `scripts/tune-project.py` `hooks_env` (`ADR_GATE_FILE_RE='^$'`); `.claude/hooks/adr-gate.sh` | `inert-sentinel` | Per-language declaration regex lands (todo GAP-001); documented in SETUP.md#tune and the profile's detection block | @ch-gap-master |
+| Statusline permission mode read from the transcript | `.claude/statusline.sh` (`permissionMode` grep of `transcript_path`) | `inert-sentinel` | Claude Code exposes the permission mode in the statusLine JSON — swap the transcript grep for that field; until then the mode is simply omitted if the format changes | @ch-gap-master |
 
 ## Graduation Log {#graduation-log}
 

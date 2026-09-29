@@ -9,43 +9,43 @@ metadata:
 
 # Session Handoff for {PROJECT_NAME} {#root}
 
-Date: 2026-07-06
+Date: 2026-09-29
 
 ## Completed {#completed}
 
-Unified `cat-herder` into the baseline Claude Code template — folded cliquedb (canonical),
-refmatrix/rmx (engine), viascope (historical), and grafted spec-kit's SDD flow with an ADR gate.
-Committed as `b1b9834` (130 files, +7944/-479). Full decision log D1–D12 in
-`workflow/plans/unified-baseline-merge.md`.
+**Stack-aware install tuning** — `install.sh` now tunes the scaffold to the target project
+(`workflow/implementation_summaries/install-project-tuning.md`).
 
-- **SDD chain** — 8 `/ch-*` commands `constitution → specify → clarify → crucible → plan → tasks
-  → analyze → implement`; `/ch-crucible` is the ADR gate (dispatches `@ch-architect`). Backing
-  `scripts/sdd/`, GMD templates, `workflow/CONSTITUTION.md` gate.
-- **Agents** — +`ch-alignment`, `ch-implementer`, `gmd-curator`; refreshed `ch-architect`/`ch-bsd`.
-  Project-neutral + per-agent `.local.md` overlay + `.claude/PROJECT_PROFILE.md` (committed post-init).
-- **rmx-only memory** — `settings.json` swaps wolf→rmx hooks (guarded). STM: `focus summarize
-  --promote` at PreCompact/Stop, `focus context` on resume; agent STM ops via `refmatrix` MCP
-  tools (`rmx_focus_note`, `rmx_change_subject`, …). Curated enforcement hooks. OpenWolf DROPPED;
-  buglog → native `workflow/bug_registry.md`.
-- **Workflow** — single status-driven `workflow/plans/` (`metadata.status`, no file moves);
-  `plan-of-plans.md` = one index+sequence. Added `specs/`, TDD_GOVERNANCE, deferral+bug registries,
-  session-state commands.
-- **Docs** — full GMD transition (44 GMD docs, lint clean); instruction docs `CAPITALIZED.md`;
-  CODEBASE_INDEX dropped for rmx nav; `.mcp.json` +refmatrix/tldr; CI + gmd-lint workflows.
-- **Cross-project** — bus messages to refmatrix + cliquedb re: the `focus summarize --promote` bug
-  (they ship the same regime) + MCP-first STM (`proj:refmatrix:bugs`, `:feature`, `proj:cliquedb:hello`).
+- **`scripts/tune-project.py`** — detects languages (15 incl. SQL), conventional *and*
+  non-conventional source roots, tests/UI/migrations, monorepos, frameworks, storage, Docker, and
+  **evidence-only** commands; prompts for from-scratch projects. Fills only placeholder fields of
+  `PROJECT_PROFILE.md` (+ generator-owned `Install detection` block), writes a digest-owned
+  `hooks.env`, reports `drift:` on tuned profiles. Exit `3` = nothing tuned.
+- **`install.sh`** — tuning step + flags; `.scaffoldignore` = single runtime-state exclusion list
+  (rsync + Python fallback); in-place template runs skip tuning unless `--tune`; rtk dropped.
+- **Statusline** — `.claude/statusline.sh` shows model + permission mode; portable (BSD/GNU date,
+  jq guard), per-session accounting.
+- **`/ch-review` run** — 5 agents, 0 Critical; all High + most Medium fixed on
+  `install-tuning-review-fixes`. Triage: `docs/problem_log.md`. Bugs 002–006 in
+  `workflow/bug_registry.md`.
+- **Tests** — `.selftest/` (37 cases, stdlib, no mocks; passes on Python 3.9/3.10/3.14) + CI
+  `template-selftest.yml` (Ubuntu 3.10/3.13, macOS).
+- Verified against sibling repos read-only (`--dry-run`): portal, atldb, cliquet, atlapi.
 
 ## Git State {#git-state}
 
-- Branch `unified-baseline-merge`, HEAD `b1b9834`. Working tree clean. **Push pending** (user pushes).
-- Not merged to `main`.
+- `main` at the merge of `install-tuning-review-fixes` (branch kept; earlier
+  `install-project-tuning` merged as `f7159c8`). Not pushed.
 
 ## Next Steps {#next-steps}
 
-- Push `unified-baseline-merge` and open/merge to `main` when ready.
-- Optional: GMD-ify the one historical `past_handoffs/001` (currently the sole non-GMD warn).
-- On any real project: run `./install.sh <path>`, fill `PROJECT_PROFILE.md` + `hooks.env`,
-  create `<agent>.local.md` overlays, then `/ch-constitution` → `/ch-specify`.
+- **User decisions pending** (`docs/architecture/todo.md`):
+  - GAP-003 statusline default-on vs opt-in (+ default reset zone).
+  - GAP-004 untrack + gitignore `.agents/`, `.augment/`, `skills-lock.json`, or document as vendored.
+  - GAP-005 write the ADR "project-fact ownership & install-time tuning" via `/ch-crucible`.
+- Resolveable gaps: GAP-001 per-language adr-gate declarations; GAP-002 baseline upgrade path;
+  GAP-006 `.refmatrix/` ignore for targets with an existing `.gitignore`.
+- atlapi has no cat-herder install yet (user to decide); portal's own instance handles portal.
 
 ## Past Sessions {#past-sessions}
 
@@ -53,9 +53,17 @@ Committed as `b1b9834` (130 files, +7944/-479). Full decision log D1–D12 in
 |---|---------|------|---------|
 | 001 | Template bootstrap | 2026-06-11 | workflow/past_handoffs/001-template-bootstrap_2026-06-11.md |
 | 002 | ch-bsd port | 2026-06-11 | workflow/past_handoffs/002-ch-bsd-port_2026-06-11.md |
+| 003 | Unified baseline merge | 2026-07-06 | workflow/past_handoffs/003-unified-baseline-merge_2026-07-06.md |
+
+## User Preferences {#user-preferences}
+
+- Installs must be tuned to the target's real structure; never invent commands or layout.
+- Template runtime state (`.refmatrix`, `.tldr`, `.agents`, `.augment`) must never be copied.
+- Sibling repos (portal, atldb, cliquet, atlapi) are references; portal's own Claude instance
+  installs cat-herder there.
 
 ## Hand-Off Notes {#hand-off-notes}
 
 - This is the cat-herder template source itself — `{PLACEHOLDER}` values remain unexpanded.
-- Source authority: cliquedb = canonical, refmatrix = rmx engine, viascope = historical only.
-- rmx STM subject for this work: `unified-baseline-merge` (promoted digest in durable memory).
+- Run `.selftest/run.sh` after touching the tuner, install.sh, hooks or statusline.
+- Review reports: `workflow/review-output/install-project-tuning-*.md` (gitignored, local only).
