@@ -3,7 +3,7 @@
 # install.sh — bootstrap a cat-herder Claude Code project from this template.
 #
 # Scaffolds the template into a PROJECT_PATH (created if missing; existing files
-# are preserved, never clobbered), then installs and wires the optional-but-
+# are preserved, never clobbered), tunes it to the project, then installs and wires the optional-but-
 # recommended dependencies that make the discovery ladder, token savings, and
 # memory features work:
 #
@@ -21,21 +21,26 @@
 # (placeholder fields only) and a tuned .claude/hooks/hooks.env. The agent finishes the rest
 # on first run (docs/ONBOARDING.md). Pass the tuning flags below to answer without prompts.
 #
-# Re-running is a SAFE UPGRADE: the neutral baseline (agent defs, commands, templates,
-# scripts/sdd, *.example) is refreshed, but project-specific files (.claude/agents/*.local.md,
-# a filled .claude/PROJECT_PROFILE.md, .claude/hooks/hooks.env) are preserved, never clobbered.
+# Re-running is SAFE but NOT AN UPGRADE: scaffolding only ADDS template files the project lacks
+# and never overwrites an existing file, so project files (.claude/agents/*.local.md, a filled
+# PROJECT_PROFILE.md, hooks.env) are never clobbered — and, equally, newer versions of baseline
+# files (agent defs, scripts/tune-project.py, …) are not pulled into an existing project. To take
+# a baseline update, copy the specific files over from the template deliberately.
 #
 # With no PROJECT_PATH the installer wires the template repo in place. Given a
 # path, it scaffolds there and wires that project. Idempotent and safe to re-run.
 #
 # Usage:
 #   ./install.sh                      # wire the template repo in place
-#   ./install.sh ../my-project        # scaffold into ../my-project, then wire it
+#   ./install.sh ../my-project        # scaffold into ../my-project, tune, then wire it
 #   ./install.sh ~/code/app --minimal # scaffold, only wire bundled GMD + SDD tooling
 #   ./install.sh ../new-app --lang=python,ts --name="New App" --db=postgres --no-prompt
 #   ./install.sh --tune               # in place, but this clone IS a new project: tune it
 #   ./install.sh --skip-caveman
 #   ./install.sh --help
+#
+# Dependency flags:
+#   --minimal  --skip-rmx  --skip-tldr  --skip-caveman
 #
 # Tuning flags (forwarded to scripts/tune-project.py):
 #   --no-tune  --no-prompt  --tune  --skeleton|--no-skeleton
@@ -55,12 +60,13 @@ for arg in "$@"; do
     --skip-rmx)       SKIP_RMX=1 ;;
     --skip-tldr)      SKIP_TLDR=1 ;;
     --skip-caveman)   SKIP_CAVEMAN=1 ;;
+    --skip-rtk)       echo "note: --skip-rtk is deprecated (rtk is no longer installed); ignoring" >&2 ;;
     --tune)           TUNE=1 ;;
     --no-tune)        TUNE=0 ;;
     --no-prompt|--skeleton|--no-skeleton) TUNE_ARGS+=("$arg") ;;
     --name=*|--description=*|--lang=*|--package=*|--db=*|--ui=*|--os=*) TUNE_ARGS+=("$arg") ;;
     -h|--help)
-      sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
       exit 0 ;;
     --*) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
     *)
@@ -91,19 +97,11 @@ WIRED=(); SKIPPED=(); FAILED=()
 # (never overwritten) so this is safe on a partially-populated project.
 # Skips the template's own VCS + runtime state.
 #
-# RUNTIME STATE IS NEVER COPIED. These dirs hold state *about the template repo*,
-# not baseline content; copying them would poison the target:
-#   .refmatrix/  rmx catalog (DuckDB), STM, queues, locks, logs. Copying it seeds
-#                the target's index with the TEMPLATE's content — rmx context/query/
-#                memory would then answer about cat-herder, not the project. The
-#                target builds its own catalog on first rmx sync/ingest.
-#   .tldr/       llm-tldr index cache for the template's code (rebuilt: tldr warm .)
-#   .agents/, .augment/
-#                caveman skill copies written by the caveman installer (pinned in
-#                skills-lock.json). install_caveman below regenerates them in the
-#                target; a stale copy would shadow the freshly installed version.
-#   .memory.db*, memory.*, .wolf/, .rtk/, .claude/cam_local/ — other tool state.
-# Keep this list in sync with the rsync excludes and SETUP.md Step 1.
+# RUNTIME STATE IS NEVER COPIED. .scaffoldignore (the single source for the exclusion
+# list, with the reason for each entry) is read by BOTH copy paths below. Most importantly
+# .refmatrix/ — the rmx catalog — would seed the target's index with the TEMPLATE's content, so
+# rmx context/query/memory would answer about cat-herder, not the project. The target builds
+# its own catalog on first rmx sync/ingest; .tldr, .agents/.augment are rebuilt likewise.
 # ---------------------------------------------------------------------------
 scaffold_project() {
   if [ "$PROJECT_ROOT" = "$TEMPLATE_ROOT" ]; then
@@ -111,26 +109,41 @@ scaffold_project() {
     return
   fi
   say "Scaffolding template into $PROJECT_ROOT (existing files preserved)"
+  local ignore="$TEMPLATE_ROOT/.scaffoldignore"
+  [ -f "$ignore" ] || { warn ".scaffoldignore missing from the template — refusing to scaffold"; exit 1; }
   if have rsync; then
-    rsync -a --ignore-existing \
-      --exclude '.git/' --exclude '.memory.db*' --exclude 'memory.*' --exclude '.memory.*' \
-      --exclude '__pycache__/' --exclude '*.pyc' --exclude '.venv/' \
-      --exclude 'node_modules/' --exclude '.wolf/' --exclude '.DS_Store' \
-      --exclude '/.refmatrix/' --exclude '/.tldr/' --exclude '/.agents/' --exclude '/.augment/' \
-      --exclude '/skills-lock.json' --exclude '/.rtk/' --exclude '/.claude/cam_local/' \
-      "$TEMPLATE_ROOT"/ "$PROJECT_ROOT"/
+    rsync -a --ignore-existing --exclude-from="$ignore" "$TEMPLATE_ROOT"/ "$PROJECT_ROOT"/
     ok "scaffold complete (rsync)"
+  elif have python3; then
+    # Same semantics as rsync --ignore-existing --exclude-from, file by file.
+    python3 - "$TEMPLATE_ROOT" "$PROJECT_ROOT" "$ignore" <<'PY'
+import fnmatch, os, shutil, sys
+src, dst, ignore = sys.argv[1:4]
+pats = [l.strip() for l in open(ignore) if l.strip() and not l.lstrip().startswith("#")]
+def excluded(rel, is_dir):
+    for p in pats:
+        dir_only, p = p.endswith("/"), p.rstrip("/")
+        if dir_only and not is_dir:
+            continue
+        if p.startswith("/"):
+            if rel == p[1:]:
+                return True
+        elif fnmatch.fnmatch(os.path.basename(rel), p):
+            return True
+    return False
+for dirpath, dirs, files in os.walk(src):
+    base = os.path.relpath(dirpath, src)
+    base = "" if base == "." else base
+    dirs[:] = [d for d in dirs if not excluded(os.path.join(base, d), True)]
+    os.makedirs(os.path.join(dst, base), exist_ok=True)
+    for f in files:
+        rel = os.path.join(base, f)
+        if not excluded(rel, False) and not os.path.lexists(os.path.join(dst, rel)):
+            shutil.copy2(os.path.join(src, rel), os.path.join(dst, rel), follow_symlinks=False)
+PY
+    ok "scaffold complete (python fallback)"
   else
-    # Portable fallback: copy known top-level entries, never clobbering existing.
-    # (An allow-list, so runtime state — .refmatrix, .tldr, .agents, .augment — is never listed.)
-    local items=(CLAUDE.md SETUP.md handoff.md install.sh .mcp.json .gitignore \
-                 .gmd .claude docs workflow tools scripts)
-    local it
-    for it in "${items[@]}"; do
-      [ -e "$TEMPLATE_ROOT/$it" ] || continue
-      if [ -e "$PROJECT_ROOT/$it" ]; then ok "kept existing: $it"; continue; fi
-      cp -R "$TEMPLATE_ROOT/$it" "$PROJECT_ROOT/$it" && ok "added: $it"
-    done
+    warn "need rsync or python3 to scaffold"; exit 1
   fi
 }
 
@@ -192,13 +205,16 @@ tune_project() {
     warn "python3 not found — cannot tune. Install Python 3, then: python3 scripts/tune-project.py"
     FAILED+=("tune"); return
   fi
-  if python3 scripts/tune-project.py --root . ${TUNE_ARGS[@]+"${TUNE_ARGS[@]}"}; then
-    ok "tuned .claude/PROJECT_PROFILE.md + .claude/hooks/hooks.env — review both"
-    WIRED+=("tune")
-  else
-    warn "tuning failed — re-run: python3 scripts/tune-project.py"
-    FAILED+=("tune")
-  fi
+  local rc=0
+  python3 scripts/tune-project.py --root . ${TUNE_ARGS[@]+"${TUNE_ARGS[@]}"} || rc=$?
+  case "$rc" in
+    0) ok "tuned .claude/PROJECT_PROFILE.md + .claude/hooks/hooks.env — review both"
+       WIRED+=("tune") ;;
+    3) warn "nothing tuned (from-scratch project, no terminal) — re-run: python3 scripts/tune-project.py"
+       SKIPPED+=("tune") ;;
+    *) warn "tuning failed (exit $rc) — re-run: python3 scripts/tune-project.py"
+       FAILED+=("tune") ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------

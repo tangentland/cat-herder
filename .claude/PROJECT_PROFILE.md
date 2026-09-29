@@ -14,9 +14,10 @@ definitions, commands, and hooks pull in by reference. Fill the placeholders whe
 project. Agents read the sections relevant to their task; they never hardcode these facts.
 
 > **How inclusion works.** Committed agent defs (`.claude/agents/<name>.md`) stay neutral. Each may
-> have an optional overlay `.claude/agents/<name>.local.md` (gitignored) for role-specific project
-> detail. This file holds the facts common to *all* agents + hooks. CLAUDE.md `@`-imports it so it
-> is ambient context. See `.claude/agents/<name>.local.md.example` for the overlay shape.
+> have an optional overlay `.claude/agents/<name>.local.md` (committed — the project's
+> customization) for role-specific project detail. This file holds the facts common to *all*
+> agents + hooks. CLAUDE.md `@`-imports it so it is ambient context. See
+> `.claude/agents/<name>.local.md.example` for the overlay shape.
 
 ## Identity {#identity}
 

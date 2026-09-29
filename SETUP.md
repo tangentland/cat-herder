@@ -13,7 +13,7 @@ metadata:
 documentation tooling, and an installer that wires the token-saving dependencies. Follow these
 steps to initialize a new project from it.
 
-## Step 1: Scaffold a New Project {#step-1}
+## Step 1: Scaffold a New Project {#scaffold}
 
 `./install.sh PROJECT_PATH` scaffolds the template into the target directory (created if it
 doesn't exist; **existing files are preserved, never overwritten**), **tunes it to the project**
@@ -37,7 +37,8 @@ Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-caveman`, plus the tuni
 > not a git repo — run `git init` there yourself when ready.
 
 > **Runtime state is never copied into the target — do not copy it by hand either.** These
-> directories describe the *template repo*, not the baseline:
+> directories describe the *template repo*, not the baseline. The authoritative list (read by
+> both of the installer's copy paths, with the reason for each entry) is `.scaffoldignore`:
 >
 > | Dir | What it is | Why excluded | How the target gets its own |
 > |-----|------------|--------------|------------------------------|
@@ -45,9 +46,15 @@ Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-caveman`, plus the tuni
 > | `.tldr/` | llm-tldr index cache | Indexes the template's code | `tldr warm .` in the target |
 > | `.agents/`, `.augment/` (+ `skills-lock.json`) | caveman skill copies from the caveman installer | A stale copy shadows the version the installer writes | `install.sh` runs the caveman installer in the target |
 > | `.memory.db*`, `memory.*`, `.wolf/`, `.rtk/`, `.claude/cam_local/` | other tool state | Template-specific | Created by the tools at runtime |
+> | `.claude/settings.local.json`, `.claude/scheduled_tasks.lock` | per-user / per-session Claude Code state | Belongs to whoever runs the template | Each user's own Claude Code |
 >
 > If a target already received any of these (an older installer, or a manual `cp -R`), delete
 > them from the target and let the tools rebuild — for `.refmatrix/`, stop the rmx daemon first.
+
+> **Re-running is safe, but it is not an upgrade.** Scaffolding only *adds* files the project
+> lacks and never overwrites one — so project edits survive, and equally, newer versions of
+> baseline files (agent definitions, `scripts/tune-project.py`, hooks) are *not* pulled into an
+> existing project. Copy a specific baseline file over deliberately when you want its update.
 
 Then `cd PROJECT_PATH` to continue.
 
@@ -89,27 +96,40 @@ directory skeleton. Without a terminal (CI, piped install) pass the answers as f
 **What it writes** (never clobbering project-authored values):
 
 - `.claude/PROJECT_PROFILE.md` — fills only fields still holding a `{…}` placeholder or a
-  template default, and records the evidence in an `Install detection` section. A profile that
-  is already filled in is left alone; the tuner just reports what it sees so drift is visible.
+  template default, and keeps a generator-owned `Install detection` evidence section (refreshed
+  on every run). Filled fields are project-owned and never rewritten; on re-run the tuner prints
+  `drift:` lines where detection now disagrees with them (e.g. a new language or source root).
 - `.claude/hooks/hooks.env` — `SRC_DIR` (one or more roots), `CORPUS_PATHS`, `CORPUS_EXTS`,
-  `ADR_GATE_FILE_RE` for the detected languages. Generated when absent or still the example.
+  `ADR_GATE_FILE_RE` for the detected languages. Regenerated on every run while it is still the
+  example or exactly what the tuner last wrote (a digest in its first line records that); edit
+  any value and it becomes project-owned. Paths with shell-unsafe characters are left out and
+  reported, since hooks source this file.
+
+`--dry-run` prints the detection and the `hooks.env` it would write, changing nothing. Exit
+status: `0` tuned, `3` nothing tuned (from scratch, no terminal, no flags), `2` bad arguments.
+
+**Known limits.** The ADR gate matches `class X` declarations only, so for Go, Rust, Elixir and
+SQL projects it is inert (`ADR_GATE_FILE_RE='^$'`, noted in the detection section). Commands are
+wrapped in `docker compose exec dev` only when the compose file defines a `dev` service, with the
+`/test-output` tee only when that mount is declared.
 
 **What it leaves for the agent** ([ONBOARDING](docs/ONBOARDING.md)): confirming every detected
-value, expanding the placeholders in `CLAUDE.md`/`.mcp.json`/workflow docs (Step 3), rewriting
-`CLAUDE.md`'s Development Commands and [Docker setup](#step-8) for the real stack, the domain
+value, expanding the placeholders in `CLAUDE.md`/`.mcp.json`/workflow docs ([Step 3](#placeholders)), rewriting
+`CLAUDE.md`'s Development Commands and [Docker setup](#docker) for the real stack, the domain
 sections of the profile (primitives, glossary, constraints), agent overlays and the constitution.
 
-## Step 3: Find and Replace Placeholders {#step-3}
+## Step 3: Find and Replace Placeholders {#placeholders}
 
 Search for these placeholders and replace them with your project values:
 
 | Placeholder | Replace With | Example |
 |-------------|-------------|---------|
 | `{PROJECT_NAME}` | Your project name | `MyApp` |
-| `{project_package}` | Python package name | `myapp` |
+| `{project_package}` | Package / module name | `myapp` |
 | `{project_db}` | Database name | `myapp` |
 | `{pkg}` | Short package name (for commands) | `myapp` |
 | `{DATE}` | Current date | `2026-02-22` |
+| `{PATH_TO_OMNISEARCH}` | mcp-omnisearch checkout path (see [Step 5](#mcp-paths)) | `~/src/mcp-omnisearch` |
 
 Files containing placeholders:
 - `CLAUDE.md` — main Claude instructions
@@ -118,6 +138,8 @@ Files containing placeholders:
 - `workflow/QUICK_REFERENCE.md` — quick lookup
 - `workflow/PATTERNS.md` — code patterns
 - `.claude/agents/*.md` and `.claude/commands/*.md` — `{project_package}` / `{PROJECT_NAME}` in examples
+- `.claude/PROJECT_PROFILE.md` — domain sections (primitives, glossary, constraints); stack fields are
+  filled by [Step 2](#tune)
 
 Quick scan for anything left:
 
@@ -125,7 +147,7 @@ Quick scan for anything left:
 grep -rn '{PROJECT_NAME}\|{project_package}\|{project_db}\|{pkg}' . --include='*.md' --include='*.json'
 ```
 
-## Step 4: Set Up Environment Variables {#step-4}
+## Step 4: Set Up Environment Variables {#env-vars}
 
 These environment variables are referenced by `.mcp.json`:
 
@@ -148,10 +170,10 @@ export PERPLEXITY_API_KEY="..."
 **Tip:** Add these to your shell profile (`~/.zshrc` or `~/.bashrc`) or use a `.env` file
 with direnv.
 
-## Step 5: Update .mcp.json Paths {#step-5}
+## Step 5: Update .mcp.json Paths {#mcp-paths}
 
-The `onmisearch` server path points to the plugin location on the template author's machine.
-Update the path to match your installation:
+The `onmisearch` server in `.mcp.json` ships with a `{PATH_TO_OMNISEARCH}` placeholder. Replace it
+with your mcp-omnisearch checkout path:
 
 ```json
 "command": "node",
@@ -160,7 +182,7 @@ Update the path to match your installation:
 
 If you don't have onmisearch installed, remove that server block entirely.
 
-## Step 6: Initialize Claude Code Memory {#step-6}
+## Step 6: Initialize Claude Code Memory {#memory}
 
 On your first Claude Code session, Claude will:
 1. Read `handoff.md` for initial context
@@ -172,7 +194,7 @@ Memory is authored as GMD files (see `docs/gmd/PRIMER.md`) and indexed for seman
 search`, backed by `rmx memory sync-disk`. If rmx is not installed, memory files are still written
 and linted; only the retrieval layer is unavailable, so the workflow degrades gracefully.
 
-## Step 7: Create Planning & Tracking Directories {#step-7}
+## Step 7: Create Planning & Tracking Directories {#planning-dirs}
 
 The project uses a **status-tracked plan lifecycle**. All plans live permanently in
 `workflow/plans/`; a plan never moves between directories — its stage is recorded ONLY by the
@@ -213,7 +235,7 @@ plan's `metadata.status` frontmatter (`drafting` → `approved` → `in-progress
 | 1 | {first plan name} | drafting | — | — |
 ```
 
-## Step 8: Set Up Docker (REQUIRED) {#step-8}
+## Step 8: Set Up Docker (REQUIRED) {#docker}
 
 All development and testing runs in Docker. The example below is for a **Python** project; for
 another stack keep the same shape (a `dev` service, `/workspace` mount, `/test-output` volume)
@@ -276,9 +298,10 @@ mkdir -p docker/test-output
 `/workspace/.venv`. The entrypoint manages all dependency installation. Never run
 `uv` or `pip install` manually — add deps to `pyproject.toml` and restart the container.
 
-## Step 9: First Session {#step-9}
+## Step 9: First Session {#first-session}
 
-Start Claude Code and it will:
+If placeholders remain, the agent first runs [ONBOARDING](docs/ONBOARDING.md). Then Start Claude
+Code and it will:
 1. Read the handoff and indexes
 2. Read `workflow/plan-of-plans.md` for what to implement next
 3. Check `docs/architecture/todo.md` for known gaps
@@ -300,12 +323,15 @@ Task Completion Workflow defined in CLAUDE.md automatically.
 | `workflow/PLAN_GOVERNANCE.md` | Plan lifecycle, staleness, question-forcing |
 | `workflow/templates/` | Document templates (task-spec, proposed-plan, exploration, handoff) |
 | `workflow/test_mock_registry.md` | Mock governance registry |
+| `docs/ONBOARDING.md` | Agent first-run onboarding (runs when placeholders remain) |
 | `docs/gmd/` | GMD primer + conformance spec (Graph Markdown authoring) |
 | `tools/gmd/` | Bundled GMD tooling — `gmd lint\|init\|slice`, `lint.py` |
 | `scripts/lint-gmd.sh` | Lint `CLAUDE.md` + `docs/` as a GMD graph |
 | `.gmd/config.yml` | Project-local GMD lint config |
 | `.claude/agents/` | Agent suite — `ch-architect`, `ch-code-reviewer`, `ch-security-auditor`, `ch-test-engineer`, `ch-doc-writer`, `ch-gap-master`, `ch-bsd`, `ch-performance-tuner`, `ch-work-summary`, `general-purpose` |
 | `.claude/commands/` | Commands — `/ch-review`, `/ch-audit`, `/ch-bsd`, `/ch-test-gen`, `/ch-handoff` |
+| `.claude/statusline.sh` | Status line (wired in `.claude/settings.json`) — project, model + permission mode, context %, tokens, weekly counters. Needs `jq`; BSD or GNU `date`; weekly state in `~/.claude/.weekly_state` (reset Sunday 10:00 in `$CH_STATUS_WEEK_TZ`, default America/Los_Angeles), per-session state in `~/.claude/.statusline/`. The permission mode is read from the session transcript (not in the status JSON) |
+| `.scaffoldignore` | Paths `install.sh` never copies into a target (runtime state, per-user files, template self-tests) |
 | `.claude/rules/` | Always-on rules (e.g. `bug-registry.md`) |
 | `.mcp.json` | MCP server configuration — GitHub, Docker, search, PostgreSQL, diagrams |
 | `.gitignore` | Git ignore rules — venv, cache, test output, memory state, IDE files |

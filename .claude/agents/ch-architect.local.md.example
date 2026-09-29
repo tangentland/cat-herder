@@ -1,7 +1,7 @@
 # ch-architect — project overlay (EXAMPLE)
 
 Copy to `.claude/agents/ch-architect.local.md` (drops the `.example`; the real file is
-gitignored) and fill with THIS project's architecture specifics. The neutral
+committed as this project's customization) and fill with THIS project's architecture specifics. The neutral
 `.claude/agents/ch-architect.md` reads this overlay first when present. Keep it to
 project-specific facts the neutral definition deliberately omits.
 
