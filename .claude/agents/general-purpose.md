@@ -12,6 +12,17 @@ model: inherit
 enabled: true
 ---
 
+## Project profile {#project-profile}
+
+This definition is **project-neutral** — it ships in the cat-herder baseline template and works
+unmodified in any project. Project-specific guidance for this role lives in an optional local
+overlay: **if `.claude/agents/general-purpose.local.md` exists, read it FIRST** — it holds this project's
+specifics for this role (the stack, the directory layout, and the exact commands for test/lint/build). Facts shared across all agents live in
+`.claude/PROJECT_PROFILE.md`. Never hardcode project specifics into this committed file — put
+them in the `.local.md` overlay.
+
+---
+
 Project-level `general-purpose` agent. Behavior matches the harness default (full toolset,
 multi-step task execution, search / research / implementation work) plus the project conventions
 below.

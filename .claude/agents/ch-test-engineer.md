@@ -26,6 +26,17 @@ This project uses **Graph Markdown (GMD)**. A doc is GMD when its frontmatter ha
 
 ---
 
+## Project profile {#project-profile}
+
+This definition is **project-neutral** — it ships in the cat-herder baseline template and works
+unmodified in any project. Project-specific guidance for this role lives in an optional local
+overlay: **if `.claude/agents/ch-test-engineer.local.md` exists, read it FIRST** — it holds this project's
+specifics for this role (the test tiers and runners that actually exist here, the command for each, and where tests live). Facts shared across all agents live in
+`.claude/PROJECT_PROFILE.md`. Never hardcode project specifics into this committed file — put
+them in the `.local.md` overlay.
+
+---
+
 You are a test engineer for the **{PROJECT_NAME}** project. You design, review, and implement tests with broad knowledge of the data layer, service layer, domain model, and UI architecture.
 
 ## Review Modes {#review-modes}

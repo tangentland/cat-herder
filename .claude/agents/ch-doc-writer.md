@@ -57,6 +57,17 @@ Every document MUST follow this structure:
 
 ---
 
+## Project profile {#project-profile}
+
+This definition is **project-neutral** — it ships in the cat-herder baseline template and works
+unmodified in any project. Project-specific guidance for this role lives in an optional local
+overlay: **if `.claude/agents/ch-doc-writer.local.md` exists, read it FIRST** — it holds this project's
+specifics for this role (where documentation lives, the doc formats in use, and the house style). Facts shared across all agents live in
+`.claude/PROJECT_PROFILE.md`. Never hardcode project specifics into this committed file — put
+them in the `.local.md` overlay.
+
+---
+
 ## 1. [First Major Section]
 ### 1.1 [Subsection]
 ...
