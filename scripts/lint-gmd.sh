@@ -20,4 +20,4 @@ if [[ ! -f "$LINTER" ]]; then
 fi
 
 cd "$ROOT"
-exec python3 "$LINTER" CLAUDE.md docs/ "$@"
+exec python3 "$LINTER" CLAUDE.md SETUP.md docs/ "$@"
