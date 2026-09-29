@@ -8,8 +8,10 @@
 #                template's content (rmx context/query/memory would answer about cat-herder)
 #   .tldr/       llm-tldr index of the template's code (target: tldr warm .)
 #   .agents/ .augment/ skills-lock.json
-#                caveman skill copies written by the caveman installer, which install.sh
-#                re-runs in the target; a stale copy would shadow the fresh install
+#                VENDORED in the template (tracked on purpose, pinned by skills-lock.json) so
+#                the template's own sessions have the caveman skills. Not copied: install.sh
+#                re-runs the caveman installer in the target, which writes and pins the
+#                project's own copies; a stale template copy would shadow that install
 #   .claude/settings.local.json, .claude/scheduled_tasks.lock — per-user / per-session state
 
 # VCS, OS and language caches

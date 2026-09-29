@@ -44,7 +44,7 @@ Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-caveman`, plus the tuni
 > |-----|------------|--------------|------------------------------|
 > | `.refmatrix/` | rmx catalog (DuckDB), STM, queues, locks, logs | Copying cat-herder's catalog **seeds the target's index with the template's content** — `rmx context`/`query`/`memory` would answer about cat-herder, not the project | rmx builds a fresh catalog on first sync/ingest in the target |
 > | `.tldr/` | llm-tldr index cache | Indexes the template's code | `tldr warm .` in the target |
-> | `.agents/`, `.augment/` (+ `skills-lock.json`) | caveman skill copies from the caveman installer | A stale copy shadows the version the installer writes | `install.sh` runs the caveman installer in the target |
+> | `.agents/`, `.augment/` (+ `skills-lock.json`) | caveman skills **vendored** in the template — tracked on purpose, pinned by `skills-lock.json`, for the template's own sessions | A stale copy would shadow the version the installer writes | `install.sh` runs the caveman installer in the target, which writes and pins the project's own copies (commit them there too) |
 > | `.memory.db*`, `memory.*`, `.wolf/`, `.rtk/`, `.claude/cam_local/` | other tool state | Template-specific | Created by the tools at runtime |
 > | `.claude/settings.local.json`, `.claude/scheduled_tasks.lock` | per-user / per-session Claude Code state | Belongs to whoever runs the template | Each user's own Claude Code |
 >
@@ -81,7 +81,7 @@ re-run it by hand whenever the codebase grows a new language or top-level direct
 | Tests / UI / migrations | `tests/ test/ spec/ __tests__/ e2e/` and language conventions; `ui/ frontend/ web/ client/` (or static `public/`); `alembic/ migrations/ prisma/ db/migrate/ …` |
 | Monorepo | pnpm/npm workspaces, `lerna`/`nx`/`turbo`, `go.work`, Cargo/uv workspaces → `packages/ apps/ services/ crates/ …` become roots |
 | Frameworks, storage, Docker | manifest dependencies, compose services, `Dockerfile` |
-| Test / lint / type / format commands | **evidence only** — tool config files, declared dependencies, `package.json` scripts, `Makefile` targets. A command with no evidence is written as "none detected", never invented. Commands are wrapped in `docker compose exec dev` only when a compose file exists. |
+| Test / lint / type / format commands | **evidence only** — tool config files, declared dependencies, `package.json` scripts, `Makefile` targets. A command with no evidence is written as "none detected", never invented. Commands are wrapped in `docker compose exec dev` only when the compose file defines a `dev` service (see Known limits). |
 
 Supported languages: Python, TypeScript, JavaScript, Go, Rust, Java, Kotlin, C#, Ruby, PHP,
 Elixir, Swift, Dart, C/C++, and SQL (schema/function/query repos).
@@ -330,7 +330,7 @@ Task Completion Workflow defined in CLAUDE.md automatically.
 | `.gmd/config.yml` | Project-local GMD lint config |
 | `.claude/agents/` | Agent suite — `ch-architect`, `ch-code-reviewer`, `ch-security-auditor`, `ch-test-engineer`, `ch-doc-writer`, `ch-gap-master`, `ch-bsd`, `ch-performance-tuner`, `ch-work-summary`, `general-purpose` |
 | `.claude/commands/` | Commands — `/ch-review`, `/ch-audit`, `/ch-bsd`, `/ch-test-gen`, `/ch-handoff` |
-| `.claude/statusline.sh` | Status line (wired in `.claude/settings.json`) — project, model + permission mode, context %, tokens, weekly counters. Needs `jq`; BSD or GNU `date`; weekly state in `~/.claude/.weekly_state` (reset Sunday 10:00 in `$CH_STATUS_WEEK_TZ`, default America/Los_Angeles), per-session state in `~/.claude/.statusline/`. The permission mode is read from the session transcript (not in the status JSON) |
+| `.claude/statusline.sh` | Status line, **on by default** (wired as `statusLine` in the project's `.claude/settings.json`, which takes precedence over a user-level status line; delete that key to opt out) — project, model + permission mode, context %, tokens, weekly counters. Needs `jq`; BSD or GNU `date`; weekly state in `~/.claude/.weekly_state` (reset Sunday 10:00 in `$CH_STATUS_WEEK_TZ`, default America/Los_Angeles), per-session state in `~/.claude/.statusline/`. The permission mode is read from the session transcript (not in the status JSON) |
 | `.scaffoldignore` | Paths `install.sh` never copies into a target (runtime state, per-user files, template self-tests) |
 | `.claude/rules/` | Always-on rules (e.g. `bug-registry.md`) |
 | `.mcp.json` | MCP server configuration — GitHub, Docker, search, PostgreSQL, diagrams |

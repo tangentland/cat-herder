@@ -37,5 +37,5 @@ gap-master 3H/5M/5L, doc-writer 0H/3M/7L — heavily overlapping.
 | "Safe upgrade" claim false | Medium | docs corrected; mechanism deferred (GAP-002) |
 | adr-gate class-only / inert for Go, Rust, SQL | Medium | documented; deferred (GAP-001) |
 | adr-gate matched absolute path; unquoted glob | Low | fixed |
-| Statusline default-on / timezone; `.agents` tracking; ADR | Medium | awaiting user decision (GAP-003/004/005) |
+| Statusline default-on / timezone; `.agents` tracking; ADR | Medium | decided: statusline on by default; caveman dirs documented as vendored; ADR-0001 written |
 | Doc drift (omnisearch placeholder, overlay "gitignored", help text, lint scope) | Medium/Low | fixed |
