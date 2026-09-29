@@ -97,6 +97,9 @@ memory.*
 .wolf/
 .tldr/
 .rtk/
+# rmx runtime: DuckDB catalog, STM, queues, locks, logs. Per-checkout state — never commit it,
+# never scaffold it into another project (it would seed that project's index with this one's).
+.refmatrix/
 
 # NOTE: per-agent project overlays (.claude/agents/<name>.local.md), .claude/PROJECT_PROFILE.md,
 # and .claude/hooks/hooks.env are PROJECT-SPECIFIC and MUST be committed once a project is

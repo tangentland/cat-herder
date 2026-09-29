@@ -9,8 +9,12 @@ INPUT="$(cat)"
 FILE_PATH="$(printf '%s' "$INPUT" | hook_json_field tool_input.file_path)"
 [ -z "$FILE_PATH" ] && exit 0
 printf '%s' "$FILE_PATH" | grep -qE "$ADR_GATE_FILE_RE" || exit 0
-# Only gate files under the configured source root.
-case "$FILE_PATH" in *"/$SRC_DIR/"*|"$SRC_DIR/"*) ;; *) exit 0 ;; esac
+# Only gate files under a configured source root (SRC_DIR may list several, space-separated).
+IN_SRC=0
+for D in $SRC_DIR; do
+    case "$FILE_PATH" in *"/$D/"*|"$D/"*) IN_SRC=1; break ;; esac
+done
+[ "$IN_SRC" -eq 1 ] || exit 0
 
 NEW="$(printf '%s' "$INPUT" | hook_json_field tool_input.content)"
 [ -z "$NEW" ] && NEW="$(printf '%s' "$INPUT" | hook_json_field tool_input.new_string)"
