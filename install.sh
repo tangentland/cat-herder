@@ -9,9 +9,17 @@
 #
 #   rmx       — refmatrix: primary memory layer + GMD surface    (github.com/tangentland/refmatrix)
 #   llm-tldr  — token-efficient code analysis / call graphs     (PyPI)
-#   rtk       — Rust Token Killer: shrinks dev-command output    (github.com/rtk-ai/rtk)
 #   caveman   — ultra-compressed agent communication mode        (github.com/JuliusBrussee/caveman)
 #   gmd       — Graph Markdown tooling (bundled under tools/gmd)
+#
+# TUNING TO THE PROJECT IS PART OF INSTALL. After scaffolding, scripts/tune-project.py inspects
+# the target: for an EXISTING codebase it detects languages, per-language directory layout
+# (src/test/ui/migration roots, monorepo workspaces), frameworks, database and the stack's
+# test/lint/type-check/format commands; for a FROM-SCRATCH project (no code, no manifests) it
+# PROMPTS for name, languages, package, frameworks, database, UI dir and target OS, and can
+# create the conventional directory skeleton. Results land in .claude/PROJECT_PROFILE.md
+# (placeholder fields only) and a tuned .claude/hooks/hooks.env. The agent finishes the rest
+# on first run (docs/ONBOARDING.md). Pass the tuning flags below to answer without prompts.
 #
 # Re-running is a SAFE UPGRADE: the neutral baseline (agent defs, commands, templates,
 # scripts/sdd, *.example) is refreshed, but project-specific files (.claude/agents/*.local.md,
@@ -24,25 +32,35 @@
 #   ./install.sh                      # wire the template repo in place
 #   ./install.sh ../my-project        # scaffold into ../my-project, then wire it
 #   ./install.sh ~/code/app --minimal # scaffold, only wire bundled GMD + SDD tooling
+#   ./install.sh ../new-app --lang=python,ts --name="New App" --db=postgres --no-prompt
+#   ./install.sh --tune               # in place, but this clone IS a new project: tune it
 #   ./install.sh --skip-caveman
 #   ./install.sh --help
+#
+# Tuning flags (forwarded to scripts/tune-project.py):
+#   --no-tune  --no-prompt  --tune  --skeleton|--no-skeleton
+#   --name=  --description=  --lang=  --package=  --db=  --ui=  --os=
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"   # template source (where this script lives)
 
 # ---- options ---------------------------------------------------------------
-SKIP_RMX=0; SKIP_TLDR=0; SKIP_RTK=0; SKIP_CAVEMAN=0; MINIMAL=0
+SKIP_RMX=0; SKIP_TLDR=0; SKIP_CAVEMAN=0; MINIMAL=0
+TUNE=auto; TUNE_ARGS=()
 PROJECT_DIR=""
 for arg in "$@"; do
   case "$arg" in
     --minimal)        MINIMAL=1 ;;
     --skip-rmx)       SKIP_RMX=1 ;;
     --skip-tldr)      SKIP_TLDR=1 ;;
-    --skip-rtk)       SKIP_RTK=1 ;;
     --skip-caveman)   SKIP_CAVEMAN=1 ;;
+    --tune)           TUNE=1 ;;
+    --no-tune)        TUNE=0 ;;
+    --no-prompt|--skeleton|--no-skeleton) TUNE_ARGS+=("$arg") ;;
+    --name=*|--description=*|--lang=*|--package=*|--db=*|--ui=*|--os=*) TUNE_ARGS+=("$arg") ;;
     -h|--help)
-      sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     --*) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
     *)
@@ -72,6 +90,20 @@ WIRED=(); SKIPPED=(); FAILED=()
 # Scaffold the template into PROJECT_ROOT. Existing files are preserved
 # (never overwritten) so this is safe on a partially-populated project.
 # Skips the template's own VCS + runtime state.
+#
+# RUNTIME STATE IS NEVER COPIED. These dirs hold state *about the template repo*,
+# not baseline content; copying them would poison the target:
+#   .refmatrix/  rmx catalog (DuckDB), STM, queues, locks, logs. Copying it seeds
+#                the target's index with the TEMPLATE's content — rmx context/query/
+#                memory would then answer about cat-herder, not the project. The
+#                target builds its own catalog on first rmx sync/ingest.
+#   .tldr/       llm-tldr index cache for the template's code (rebuilt: tldr warm .)
+#   .agents/, .augment/
+#                caveman skill copies written by the caveman installer (pinned in
+#                skills-lock.json). install_caveman below regenerates them in the
+#                target; a stale copy would shadow the freshly installed version.
+#   .memory.db*, memory.*, .wolf/, .rtk/, .claude/cam_local/ — other tool state.
+# Keep this list in sync with the rsync excludes and SETUP.md Step 1.
 # ---------------------------------------------------------------------------
 scaffold_project() {
   if [ "$PROJECT_ROOT" = "$TEMPLATE_ROOT" ]; then
@@ -84,10 +116,13 @@ scaffold_project() {
       --exclude '.git/' --exclude '.memory.db*' --exclude 'memory.*' --exclude '.memory.*' \
       --exclude '__pycache__/' --exclude '*.pyc' --exclude '.venv/' \
       --exclude 'node_modules/' --exclude '.wolf/' --exclude '.DS_Store' \
+      --exclude '/.refmatrix/' --exclude '/.tldr/' --exclude '/.agents/' --exclude '/.augment/' \
+      --exclude '/skills-lock.json' --exclude '/.rtk/' --exclude '/.claude/cam_local/' \
       "$TEMPLATE_ROOT"/ "$PROJECT_ROOT"/
     ok "scaffold complete (rsync)"
   else
     # Portable fallback: copy known top-level entries, never clobbering existing.
+    # (An allow-list, so runtime state — .refmatrix, .tldr, .agents, .augment — is never listed.)
     local items=(CLAUDE.md SETUP.md handoff.md install.sh .mcp.json .gitignore \
                  .gmd .claude docs workflow tools scripts)
     local it
@@ -125,7 +160,7 @@ wire_gmd() {
 # ---------------------------------------------------------------------------
 wire_sdd() {
   say "Wiring SDD scripts + enforcement hooks (scripts/sdd/, .claude/hooks/)"
-  chmod +x scripts/sdd/*.sh .claude/hooks/*.sh 2>/dev/null || true
+  chmod +x scripts/sdd/*.sh .claude/hooks/*.sh .claude/statusline.sh 2>/dev/null || true
   # Seed hooks.env from the example only if the project has not created one.
   if [ ! -f ".claude/hooks/hooks.env" ] && [ -f ".claude/hooks/hooks.env.example" ]; then
     cp ".claude/hooks/hooks.env.example" ".claude/hooks/hooks.env" && ok "seeded .claude/hooks/hooks.env (edit for this project)"
@@ -138,6 +173,31 @@ wire_sdd() {
   else
     warn "SDD scripts present but --help smoke-test failed."
     FAILED+=("sdd")
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Tune the scaffold to the project: detect (existing code) or prompt (from scratch).
+# Skipped when wiring the template repo itself in place, unless --tune says this
+# checkout is a real project. Never clobbers project-authored values.
+# ---------------------------------------------------------------------------
+tune_project() {
+  if [ "$TUNE" = "0" ]; then SKIPPED+=("tune"); return; fi
+  if [ "$TUNE" = "auto" ] && [ "$PROJECT_ROOT" = "$TEMPLATE_ROOT" ]; then
+    say "Wiring the template itself — skipping project tuning (use --tune if this clone is your project)"
+    SKIPPED+=("tune"); return
+  fi
+  say "Tuning to the project (languages, layout, commands) — scripts/tune-project.py"
+  if ! have python3; then
+    warn "python3 not found — cannot tune. Install Python 3, then: python3 scripts/tune-project.py"
+    FAILED+=("tune"); return
+  fi
+  if python3 scripts/tune-project.py --root . ${TUNE_ARGS[@]+"${TUNE_ARGS[@]}"}; then
+    ok "tuned .claude/PROJECT_PROFILE.md + .claude/hooks/hooks.env — review both"
+    WIRED+=("tune")
+  else
+    warn "tuning failed — re-run: python3 scripts/tune-project.py"
+    FAILED+=("tune")
   fi
 }
 
@@ -195,34 +255,6 @@ install_tldr() {
 }
 
 # ---------------------------------------------------------------------------
-# rtk (github.com/rtk-ai/rtk). brew > install script > cargo. Then wire the hook.
-# ---------------------------------------------------------------------------
-install_rtk() {
-  say "Installing rtk (Rust Token Killer)"
-  if have rtk; then
-    ok "rtk already installed ($(rtk --version 2>/dev/null))"
-  elif have brew; then
-    brew install rtk && ok "installed via Homebrew"
-  elif have curl; then
-    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh \
-      && ok "installed via install script"
-  elif have cargo; then
-    cargo install --git https://github.com/rtk-ai/rtk && ok "installed via cargo"
-  else
-    warn "No brew/curl/cargo — see https://github.com/rtk-ai/rtk#installation"
-    FAILED+=("rtk"); return
-  fi
-  if have rtk; then
-    # Wire the Claude Code auto-rewrite hook (global). Safe to re-run.
-    rtk init -g >/dev/null 2>&1 && ok "wired Claude Code hook (rtk init -g)" \
-      || warn "run 'rtk init -g' manually to wire the hook"
-    WIRED+=("rtk")
-  else
-    FAILED+=("rtk")
-  fi
-}
-
-# ---------------------------------------------------------------------------
 # caveman (github.com/JuliusBrussee/caveman). One-line installer wires the agent.
 # ---------------------------------------------------------------------------
 install_caveman() {
@@ -248,14 +280,14 @@ scaffold_project
 cd "$PROJECT_ROOT"   # all per-project wiring (GMD lint, SDD scripts) targets the project
 wire_gmd
 wire_sdd
+tune_project
 
 if [ "$MINIMAL" -eq 1 ]; then
   say "--minimal: skipping external dependencies"
-  SKIPPED+=("rmx" "llm-tldr" "rtk" "caveman")
+  SKIPPED+=("rmx" "llm-tldr" "caveman")
 else
   [ "$SKIP_RMX" -eq 1 ]      && SKIPPED+=("rmx")      || install_rmx
   [ "$SKIP_TLDR" -eq 1 ]     && SKIPPED+=("llm-tldr") || install_tldr
-  [ "$SKIP_RTK" -eq 1 ]      && SKIPPED+=("rtk")      || install_rtk
   [ "$SKIP_CAVEMAN" -eq 1 ]  && SKIPPED+=("caveman")  || install_caveman
 fi
 
@@ -272,5 +304,8 @@ echo "  • Project scaffolded at: $PROJECT_ROOT (existing files were preserved)
 echo "  • rmx (refmatrix) needs Python >= 3.10 and git. For semantic recall add the dense"
 echo "    extra: pipx install \"refmatrix[dense] @ $RMX_GIT\"  — verify with: rmx --version"
 echo "  • Some integrations wire Claude Code hooks — restart Claude Code to load them."
-echo "  • Replace template placeholders ({PROJECT_NAME}, {project_package}, …) — see SETUP.md."
+echo "  • Tuning is part of install: review .claude/PROJECT_PROFILE.md (detected/prompted values),"
+echo "    then finish in Claude Code — docs/ONBOARDING.md expands the remaining placeholders"
+echo "    ({PROJECT_NAME}, {project_package}, …) and adapts CLAUDE.md + Docker to the stack."
+echo "    Re-tune any time: python3 scripts/tune-project.py"
 [ ${#FAILED[@]} -gt 0 ] && exit 1 || exit 0

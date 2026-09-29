@@ -335,7 +335,7 @@ A finding that matches a pattern from INDEX.md or IMPRESSIONS.md gets escalated:
 3. For each changed/added function or class, trace callers using the discovery ladder:
    a. `rmx context <symbol>` / `rmx neighbors <symbol>` (if rmx present)
    b. `tldr` call-graph tools — locate the symbol, outbound deps, inbound callers
-   c. Fall back to `rtk grep` / raw `grep` if neither index has data for the symbol
+   c. Fall back to raw `grep` if neither index has data for the symbol
 4. A "production code path" = reachable from the app entry point, a lifecycle/startup
    hook, a resolver, an API route, or a mounted frontend component
 5. For each resolver: check return value for stubs

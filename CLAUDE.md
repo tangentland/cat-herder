@@ -204,7 +204,6 @@ and wire them (see SETUP.md). All are optional — the workflow degrades gracefu
 |------|---------|-------|
 | **rmx** | Lookup + learning surface — `rmx context/query/grep`, GMD memory | [refmatrix](https://github.com/tangentland/refmatrix) — Python pkg (≥3.10), exposes `rmx` CLI; installed by `./install.sh` |
 | **llm-tldr** (`tldr`) | Token-efficient code analysis, call graphs | `tldr context <symbol>`, `tldr warm .` |
-| **rtk** | Shrinks dev-command output (60-90% fewer tokens) | Auto-rewrites commands via a Claude Code hook |
 | **caveman** | Ultra-compressed agent communication mode | Provides `/commit`, `/caveman*` |
 
 **Action guardrails (optional).** `.claude/p20-0/` compiles `guardrail`-type memories in
@@ -244,7 +243,7 @@ Context compaction can erase unwritten discussion at any time.
 **Also capture the WHY to rmx short-term memory (STM).** Extended-thinking blocks are redacted
 from the transcript, so a decision's rationale is otherwise lost at session end. Record it with
 the **`refmatrix` MCP tool `rmx_focus_note`** (prefer the MCP tool over `Bash rmx focus note` —
-structured, no shell-quoting of multi-line reasoning, no permission/rtk friction). STM graduates
+structured, no shell-quoting of multi-line reasoning, no permission friction). STM graduates
 to durable memory automatically at PreCompact/Stop (`focus summarize --promote`) and on
 `/save-state`. Reach STM/memory through the MCP tools — `rmx_focus_note`, `rmx_change_subject`,
 `rmx_context`, `memory_add`/`memory_search`/`memory_recall` — not raw CLI, whenever the agent
@@ -279,8 +278,9 @@ Templates are in `workflow/templates/` (task-spec, proposed-plan, exploration, h
 It is an uninitialized template if literal placeholders remain — quick check:
 `grep -rl "{PROJECT_NAME}\|{project_package}" CLAUDE.md .mcp.json .claude/PROJECT_PROFILE.md`.
 If it matches, do NOT start normal work: surface it to the user, then follow
-[`docs/ONBOARDING.md`](docs/ONBOARDING.md) (install.sh → fill PROJECT_PROFILE → expand placeholders
-→ tune hooks.env → create `<agent>.local.md` overlays → `/ch-constitution` → commit). Run it once;
+[`docs/ONBOARDING.md`](docs/ONBOARDING.md) (install.sh detects/prompts for the stack + layout →
+confirm PROJECT_PROFILE → expand placeholders → adapt CLAUDE.md commands/Docker to the stack →
+create `<agent>.local.md` overlays → `/ch-constitution` → commit). Run it once;
 after that, this section is a no-op and you proceed to Session Start.
 
 ## Session Start {#session-start}

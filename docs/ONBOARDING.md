@@ -32,18 +32,40 @@ existing code). Then proceed.
 
 ## Onboarding sequence {#sequence}
 
-1. **Install + wire tooling** — run `./install.sh` (in place) or `./install.sh <path>` to scaffold
-   elsewhere. It wires GMD + SDD scripts, installs rmx/tldr/rtk/caveman when available, and seeds
-   `.claude/hooks/hooks.env` from its `.example` (only if absent — non-destructive; re-runnable as a
-   safe upgrade). See `SETUP.md` for the tooling detail.
-2. **Fill the project profile** — `.claude/PROJECT_PROFILE.md`: identity, stack, directory layout,
-   Docker test/lint/build commands, discovery-corpus paths, architectural primitives, glossary,
-   constraints. This is the shared project-fact source every neutral agent reads.
+Tuning to the project's actual languages and layout is part of the install, not an afterthought:
+the template ships Python/Docker defaults, and every step below replaces a default with a fact.
+
+1. **Install, tune, wire** — `./install.sh <path>` to scaffold elsewhere, or `./install.sh --tune`
+   when this clone *is* the project (plain `./install.sh` in place treats the checkout as the
+   template and skips tuning). It runs `scripts/tune-project.py`, which **detects** languages,
+   source/test/UI/migration roots (conventional *and* non-conventional), monorepo workspaces,
+   frameworks, storage, Docker, and evidence-backed commands — or, for a **from-scratch** project,
+   **prompts** for them. It fills placeholder fields in `.claude/PROJECT_PROFILE.md` (plus an
+   `Install detection` evidence section) and writes a tuned `.claude/hooks/hooks.env`. Then it wires
+   GMD + SDD scripts and installs rmx/tldr/caveman when available. Re-runnable as a safe upgrade;
+   project-authored values are never overwritten. See `SETUP.md` Step 2.
+   *If the install ran without a terminal on a from-scratch project, nothing was tuned* — ask the
+   user the stack questions and run `python3 scripts/tune-project.py --lang=… --name=… …`.
+   **Never copy the template's runtime-state dirs** (`.refmatrix/`, `.tldr/`, `.agents/`,
+   `.augment/`) into the project, even when installing by hand: cat-herder's `.refmatrix/`
+   catalog would seed the project's rmx index with the template's content, so every
+   `rmx context`/`query`/`memory` answer would describe cat-herder. If they are already present
+   in the project from an older install, confirm with the user, delete them, and let rmx /
+   tldr / the caveman installer rebuild them for this project (`SETUP.md` Step 1).
+2. **Confirm + complete the project profile** — read `.claude/PROJECT_PROFILE.md` and its
+   `Install detection` section with the user. Correct anything detection got wrong (it is a
+   starting point: e.g. a scratch dir picked up as a source root, a minor language). Fill what
+   detection cannot know: key libraries, target OS, architectural primitives, glossary,
+   constraints. A command recorded as "none detected" means none exists — do not invent one; ask.
 3. **Expand placeholders** — replace `{PROJECT_NAME}` / `{project_package}` / `{project_db}` /
    `{PATH_TO_OMNISEARCH}` across `CLAUDE.md`, `.mcp.json`, `handoff.md`, and the workflow docs
-   (`SETUP.md` Step 2 lists them). Never leave a literal `{…}` placeholder in a live project.
-4. **Tune `hooks.env`** — set `SRC_DIR`, `ADR_DIR`, `CORPUS_PATHS`, `CORPUS_EXTS` in
-   `.claude/hooks/hooks.env` to this project's real layout (mirrors PROFILE §layout/§corpus).
+   (`SETUP.md` Step 3 lists them). Never leave a literal `{…}` placeholder in a live project.
+4. **Adapt `CLAUDE.md` to the stack** — its Development Commands, container-venv rules, and quality
+   gates are written for Python in Docker. Rewrite them from the profile's §commands for the real
+   language(s) (e.g. `go test ./...`, `npm test`, `cargo clippy`), drop Python-only rules
+   (`/opt/<pkg>-venv`, `uv`) from non-Python projects, and if the project does not run in Docker
+   say so rather than keeping the Docker-only rule. Check `hooks.env` against the profile's
+   layout (`SRC_DIR` may list several roots).
 5. **Create per-agent overlays as needed** — copy `.claude/agents/<name>.local.md.example` →
    `.claude/agents/<name>.local.md` and fill project-specific guidance for the roles that need it
    (at minimum `ch-architect`, `ch-test-engineer`). Overlays are committed (they're this project's

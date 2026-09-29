@@ -16,21 +16,38 @@ steps to initialize a new project from it.
 ## Step 1: Scaffold a New Project {#step-1}
 
 `./install.sh PROJECT_PATH` scaffolds the template into the target directory (created if it
-doesn't exist; **existing files are preserved, never overwritten**), then installs and wires the
-recommended tooling (rmx, llm-tldr, rtk, caveman) and the bundled GMD linter. It is
-idempotent and each dependency is optional:
+doesn't exist; **existing files are preserved, never overwritten**), **tunes it to the project**
+(see [Step 2](#tune)), then installs and wires the recommended tooling (rmx, llm-tldr, caveman)
+and the bundled GMD linter. It is idempotent and each dependency is optional:
 
 ```bash
-./install.sh ../my-project          # scaffold into ../my-project, then wire it
-./install.sh ~/code/app --minimal   # scaffold, only wire the bundled GMD tooling
-./install.sh                        # no path → wire the template repo in place
+./install.sh ../my-project          # scaffold into ../my-project, tune, then wire it
+./install.sh ~/code/app --minimal   # scaffold + tune, only wire the bundled GMD/SDD tooling
+./install.sh ../new-app --lang=go,ts --name="New App" --db=postgres --no-prompt
+./install.sh                        # no path → wire the template repo in place (no tuning)
+./install.sh --tune                 # in place, but this clone IS your project → tune it
 ./install.sh --help                 # full usage + flags
 ```
 
-Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-rtk`, `--skip-caveman`.
+Flags: `--minimal`, `--skip-rmx`, `--skip-tldr`, `--skip-caveman`, plus the tuning flags
+`--tune`, `--no-tune`, `--no-prompt`, `--skeleton`/`--no-skeleton`, `--name=`, `--description=`,
+`--lang=`, `--package=`, `--db=`, `--ui=`, `--os=`.
 
 > Scaffolding excludes the template's own `.git/`, memory state, and caches. The new project is
 > not a git repo — run `git init` there yourself when ready.
+
+> **Runtime state is never copied into the target — do not copy it by hand either.** These
+> directories describe the *template repo*, not the baseline:
+>
+> | Dir | What it is | Why excluded | How the target gets its own |
+> |-----|------------|--------------|------------------------------|
+> | `.refmatrix/` | rmx catalog (DuckDB), STM, queues, locks, logs | Copying cat-herder's catalog **seeds the target's index with the template's content** — `rmx context`/`query`/`memory` would answer about cat-herder, not the project | rmx builds a fresh catalog on first sync/ingest in the target |
+> | `.tldr/` | llm-tldr index cache | Indexes the template's code | `tldr warm .` in the target |
+> | `.agents/`, `.augment/` (+ `skills-lock.json`) | caveman skill copies from the caveman installer | A stale copy shadows the version the installer writes | `install.sh` runs the caveman installer in the target |
+> | `.memory.db*`, `memory.*`, `.wolf/`, `.rtk/`, `.claude/cam_local/` | other tool state | Template-specific | Created by the tools at runtime |
+>
+> If a target already received any of these (an older installer, or a manual `cp -R`), delete
+> them from the target and let the tools rebuild — for `.refmatrix/`, stop the rmx daemon first.
 
 Then `cd PROJECT_PATH` to continue.
 
@@ -39,9 +56,50 @@ Then `cd PROJECT_PATH` to continue.
 > the `rmx` CLI; the installer pulls it from git via pipx/uv/pip. For semantic recall, add the
 > dense extra: `pipx install "refmatrix[dense] @ git+https://github.com/tangentland/refmatrix.git"`.
 
-After install, **restart Claude Code** so the rtk/caveman hooks load.
+After install, **restart Claude Code** so the caveman/rmx hooks load.
 
-## Step 2: Find and Replace Placeholders {#step-2}
+## Step 2: Tune to the Project (part of install) {#tune}
+
+The template is Python/Docker-flavoured by default; a project is rarely exactly that. **Tuning
+the scaffold to the project's real languages and layout is part of installing it, not an
+optional follow-up.** `install.sh` runs `scripts/tune-project.py` automatically after scaffolding;
+re-run it by hand whenever the codebase grows a new language or top-level directory.
+
+**Existing codebase — detection.** The tuner reads the project, it does not assume a layout:
+
+| Detects | From |
+|---------|------|
+| Languages (primary first; minor traces reported but not tuned for) | manifests (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`, `pom.xml`, `*.csproj`, `Gemfile`, `composer.json`, `mix.exs`, …) + a source-file census that skips deps, build output and virtualenvs |
+| Source roots | the language's conventional layout (`src/<pkg>/`, `cmd/`+`internal/`, `src/main/java/`, `lib/`, `Sources/`, …) **plus** any non-conventional top-level dir that holds source (e.g. `routes/ lib/ providers/`, or `schema/ queries/ functions/` in a SQL-first repo) |
+| Tests / UI / migrations | `tests/ test/ spec/ __tests__/ e2e/` and language conventions; `ui/ frontend/ web/ client/` (or static `public/`); `alembic/ migrations/ prisma/ db/migrate/ …` |
+| Monorepo | pnpm/npm workspaces, `lerna`/`nx`/`turbo`, `go.work`, Cargo/uv workspaces → `packages/ apps/ services/ crates/ …` become roots |
+| Frameworks, storage, Docker | manifest dependencies, compose services, `Dockerfile` |
+| Test / lint / type / format commands | **evidence only** — tool config files, declared dependencies, `package.json` scripts, `Makefile` targets. A command with no evidence is written as "none detected", never invented. Commands are wrapped in `docker compose exec dev` only when a compose file exists. |
+
+Supported languages: Python, TypeScript, JavaScript, Go, Rust, Java, Kotlin, C#, Ruby, PHP,
+Elixir, Swift, Dart, C/C++, and SQL (schema/function/query repos).
+
+**From-scratch project — prompts.** With no code and no manifests there is nothing to detect,
+so the tuner **asks**: project name, one-liner, language(s), package/module name, frameworks,
+database, UI directory, target OS. It then proposes the conventional layout for those languages,
+records the stack's idiomatic commands marked *proposed*, and offers to create the empty
+directory skeleton. Without a terminal (CI, piped install) pass the answers as flags
+(`--lang=… --name=… --package=… --db=… --ui=…`); otherwise nothing is guessed.
+
+**What it writes** (never clobbering project-authored values):
+
+- `.claude/PROJECT_PROFILE.md` — fills only fields still holding a `{…}` placeholder or a
+  template default, and records the evidence in an `Install detection` section. A profile that
+  is already filled in is left alone; the tuner just reports what it sees so drift is visible.
+- `.claude/hooks/hooks.env` — `SRC_DIR` (one or more roots), `CORPUS_PATHS`, `CORPUS_EXTS`,
+  `ADR_GATE_FILE_RE` for the detected languages. Generated when absent or still the example.
+
+**What it leaves for the agent** ([ONBOARDING](docs/ONBOARDING.md)): confirming every detected
+value, expanding the placeholders in `CLAUDE.md`/`.mcp.json`/workflow docs (Step 3), rewriting
+`CLAUDE.md`'s Development Commands and [Docker setup](#step-8) for the real stack, the domain
+sections of the profile (primitives, glossary, constraints), agent overlays and the constitution.
+
+## Step 3: Find and Replace Placeholders {#step-3}
 
 Search for these placeholders and replace them with your project values:
 
@@ -67,7 +125,7 @@ Quick scan for anything left:
 grep -rn '{PROJECT_NAME}\|{project_package}\|{project_db}\|{pkg}' . --include='*.md' --include='*.json'
 ```
 
-## Step 3: Set Up Environment Variables {#step-3}
+## Step 4: Set Up Environment Variables {#step-4}
 
 These environment variables are referenced by `.mcp.json`:
 
@@ -90,7 +148,7 @@ export PERPLEXITY_API_KEY="..."
 **Tip:** Add these to your shell profile (`~/.zshrc` or `~/.bashrc`) or use a `.env` file
 with direnv.
 
-## Step 4: Update .mcp.json Paths {#step-4}
+## Step 5: Update .mcp.json Paths {#step-5}
 
 The `onmisearch` server path points to the plugin location on the template author's machine.
 Update the path to match your installation:
@@ -102,7 +160,7 @@ Update the path to match your installation:
 
 If you don't have onmisearch installed, remove that server block entirely.
 
-## Step 5: Initialize Claude Code Memory {#step-5}
+## Step 6: Initialize Claude Code Memory {#step-6}
 
 On your first Claude Code session, Claude will:
 1. Read `handoff.md` for initial context
@@ -114,7 +172,7 @@ Memory is authored as GMD files (see `docs/gmd/PRIMER.md`) and indexed for seman
 search`, backed by `rmx memory sync-disk`. If rmx is not installed, memory files are still written
 and linted; only the retrieval layer is unavailable, so the workflow degrades gracefully.
 
-## Step 6: Create Planning & Tracking Directories {#step-6}
+## Step 7: Create Planning & Tracking Directories {#step-7}
 
 The project uses a **status-tracked plan lifecycle**. All plans live permanently in
 `workflow/plans/`; a plan never moves between directories — its stage is recorded ONLY by the
@@ -155,9 +213,15 @@ plan's `metadata.status` frontmatter (`drafting` → `approved` → `in-progress
 | 1 | {first plan name} | drafting | — | — |
 ```
 
-## Step 7: Set Up Docker (REQUIRED) {#step-7}
+## Step 8: Set Up Docker (REQUIRED) {#step-8}
 
-All development and testing runs in Docker. Create a `docker-compose.yml`:
+All development and testing runs in Docker. The example below is for a **Python** project; for
+another stack keep the same shape (a `dev` service, `/workspace` mount, `/test-output` volume)
+and swap the base image and dependency step for the one the tuned profile names — e.g.
+`node:22` + `npm ci`, `golang:1.23` + `go mod download`, `rust:1` + `cargo fetch`,
+`eclipse-temurin:21` + `./gradlew dependencies`, `postgres:16` + `pg_regress` for a SQL-first
+repo. If the project deliberately runs outside Docker (e.g. SQL executed against a remote
+database), say so in `CLAUDE.md` instead of following this step. Create a `docker-compose.yml`:
 
 ```yaml
 services:
@@ -212,7 +276,7 @@ mkdir -p docker/test-output
 `/workspace/.venv`. The entrypoint manages all dependency installation. Never run
 `uv` or `pip install` manually — add deps to `pyproject.toml` and restart the container.
 
-## Step 8: First Session {#step-8}
+## Step 9: First Session {#step-9}
 
 Start Claude Code and it will:
 1. Read the handoff and indexes
@@ -228,7 +292,8 @@ Task Completion Workflow defined in CLAUDE.md automatically.
 | File | Purpose |
 |------|---------|
 | `CLAUDE.md` | Main Claude Code instructions — development workflow, quality gates, agents |
-| `install.sh` | Installs + wires the tooling (rmx, llm-tldr, rtk, caveman, GMD) |
+| `install.sh` | Scaffolds, tunes to the project, installs + wires the tooling (rmx, llm-tldr, caveman, GMD) |
+| `scripts/tune-project.py` | Detects (or prompts for) languages, layout, commands → PROFILE + hooks.env |
 | `docs/` | **Knowledge** — `architecture/` (README, INDEX, todo, adr/, concepts/, explorations/, tech-stack/), `guides/`, `reference/`, `specs/`, `design/`, `gmd/` |
 | `workflow/` | **Process** — plans, governance, templates, audits, summaries (see `workflow/INDEX.md`) |
 | `workflow/PLANNING_WORKFLOW.md` | Full planning, exploration, and plan approval workflow |
