@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: gmd-primer
+id: cat-herder/gmd-primer
 title: "GMD Primer"
 tags: [gmd, reference]
 ---

@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: architecture-index
+id: cat-herder/architecture-index
 title: "Architecture Index"
 tags: [architecture, index]
 ---

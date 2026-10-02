@@ -37,6 +37,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import sys
 from dataclasses import dataclass, field
@@ -76,6 +77,12 @@ REL_RE = re.compile(
 FRONTMATTER_DELIM = "---"
 CODE_FENCE_RE = re.compile(r"^(```|~~~)")
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+# Project-local additions to RECOMMENDED_VERBS, loaded from `.gmd/config.yml`
+# (`extra_verbs:`). Populated by main() before ingest. Previously that config key
+# was written by `gmd init` and never read by anything.
+EXTRA_VERBS: set[str] = set()
 
 
 def strip_inline_code(line: str) -> str:
@@ -159,6 +166,10 @@ def parse_doc(path: Path) -> tuple[Doc, list[Issue]]:
     # present, the filename stem is the last-resort fallback so a
     # well-named legacy file still indexes.
     doc.doc_id = fm.get("id") or fm.get("name") or path.stem
+    if isinstance(doc.doc_id, str):
+        shape = id_shape_issue(path, 1, "bad-doc-id", doc.doc_id)
+        if shape:
+            issues.append(shape)
     doc.gmd_version = fm.get("gmd")
     # Memory files are GMD-equivalent even when the legacy frontmatter
     # never set `gmd:`. Detect via the memory marker the
@@ -224,6 +235,9 @@ def parse_doc(path: Path) -> tuple[Doc, list[Issue]]:
 
         # Extract {#id} anchors (heading or end-of-line on other blocks)
         for m in ID_RE.finditer(scan_line):
+            _shape = id_shape_issue(path, line_no, "bad-id", m.group(1))
+            if _shape:
+                issues.append(_shape)
             anchor = m.group(1)
             attrs = m.group(2).strip()
             if anchor in doc.node_ids:
@@ -248,7 +262,7 @@ def parse_doc(path: Path) -> tuple[Doc, list[Issue]]:
             verb = m.group(1)
             target_raw = m.group(2).strip()
             doc.rels.append((line_no, verb, target_raw))
-            if verb not in RECOMMENDED_VERBS:
+            if verb not in RECOMMENDED_VERBS and verb not in EXTRA_VERBS:
                 issues.append(Issue(
                     path, line_no, "warn", "unknown-verb",
                     f"verb `{verb}` not in recommended vocabulary",
@@ -298,6 +312,8 @@ def resolve_refs(
     docs: dict[str, Doc],
     paths_by_id: dict[str, Doc],
     cross_doc_severity: str = "error",
+    literal_ids: set[str] | None = None,
+    ambiguous_stems: set[str] | None = None,
 ) -> list[Issue]:
     # Build a normalized lookup table alongside the literal one so
     # legacy kebab `name:` ids match new snake `id:` ids and vice
@@ -309,8 +325,18 @@ def resolve_refs(
     # expected to contain every referenced doc. Same-doc `[[#id]]`
     # (`dangling-local`) is PHASE 1 — always an error.
     norm_by_id = {_norm_id(k): v for k, v in paths_by_id.items()}
+    literal_ids = literal_ids or set()
+    ambiguous_stems = ambiguous_stems or set()
     issues: list[Issue] = []
+    _proj_cache: dict[Path, str | None] = {}
     for doc in docs.values():
+        # A doc's own project scopes its unprefixed refs: inside project `foo`,
+        # `[[bar#x]]` may address `foo/bar`. Keeps every pre-existing unprefixed
+        # link working once ids gain a project prefix.
+        _dir = doc.path.parent
+        if _dir not in _proj_cache:
+            _proj_cache[_dir] = project_name(doc.path)
+        _project = _proj_cache[_dir]
         for line_no, raw, doc_id, anchor, in_rel in doc.refs:
             if doc_id is None:
                 if anchor and anchor not in doc.node_ids and anchor not in doc.external_ids:
@@ -319,7 +345,21 @@ def resolve_refs(
                         f"[[#{anchor}]] does not resolve to any anchor in this doc",
                     ))
                 continue
-            target = paths_by_id.get(doc_id) or norm_by_id.get(_norm_id(doc_id))
+            # Literal id, then project-scoped, then the normalized
+            # kebab/snake variants of each.
+            target = paths_by_id.get(doc_id)
+            if target is None and _project:
+                target = paths_by_id.get(f"{_project}/{doc_id}")
+            if target is None:
+                target = norm_by_id.get(_norm_id(doc_id))
+            if target is None and _project:
+                target = norm_by_id.get(_norm_id(f"{_project}/{doc_id}"))
+            if target is not None and doc_id in ambiguous_stems and doc_id not in literal_ids:
+                issues.append(Issue(
+                    doc.path, line_no, "warn", "ambiguous-stem",
+                    f"[[{raw}]] resolves by filename stem `{doc_id}`, which "
+                    f"matches several docs; use the project-prefixed id",
+                ))
             if target is None:
                 issues.append(Issue(
                     doc.path, line_no, cross_doc_severity, "dangling-doc",
@@ -340,6 +380,74 @@ def _repo_root(path: Path) -> Path | None:
     for p in [start, *start.parents]:
         if (p / ".git").exists():
             return p
+    return None
+
+
+def load_config(root: Path) -> dict:
+    """Read `.gmd/config.yml` from `root`. Minimal reader: the three keys the
+    linter honours (`project`, `extra_verbs`, `ignore`). Missing file or
+    unparseable lines yield defaults — config is always optional."""
+    cfg: dict = {"project": None, "extra_verbs": [], "ignore": []}
+    f = root / ".gmd" / "config.yml"
+    if not f.is_file():
+        return cfg
+    current_list = None
+    for raw in f.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("- ") and current_list is not None:
+            cfg[current_list].append(line[2:].strip().strip("\"'"))
+            continue
+        if ":" in line:
+            key, _, val = line.partition(":")
+            key, val = key.strip(), val.strip()
+            if key not in cfg:
+                current_list = None
+                continue
+            if val == "":
+                cfg[key] = []
+                current_list = key
+            elif val.startswith("[") and val.endswith("]"):
+                inner = val[1:-1].strip()
+                cfg[key] = [x.strip().strip("\"'") for x in inner.split(",")] if inner else []
+                current_list = None
+            else:
+                cfg[key] = val.strip("\"'")
+                current_list = None
+    return cfg
+
+
+def project_name(path: Path) -> str | None:
+    """The id namespace for docs under `path`. `.gmd/config.yml` `project:` wins;
+    otherwise the repo directory name. SPEC §2: a doc id is unique *within a
+    project*, so the project is what makes an id globally addressable."""
+    resolved = (path if path.is_dir() else path.parent).resolve()
+    # `~/.claude/` is not a repo but is a real shared namespace: the global
+    # agents, commands and memory dirs all live there, and their ids collide
+    # with every project copy unless they get a namespace of their own.
+    claude_home = (Path.home() / ".claude").resolve()
+    if resolved == claude_home or claude_home in resolved.parents:
+        return "claude"
+    # Resolve first: `_repo_root(Path("SPEC.md"))` walks from `Path(".")`, whose
+    # `.name` is the empty string — that silently yielded no project at all for
+    # every relative target.
+    root = _repo_root(resolved)
+    if root is None:
+        return None
+    configured = load_config(root).get("project")
+    return configured or root.resolve().name or None
+
+
+def id_shape_issue(path: Path, line: int, kind: str, ident: str) -> Issue | None:
+    """SPEC §3: ids MAY contain `/` for hierarchy but MUST NOT start or end with
+    `/`, and MUST NOT contain `//`. These were unenforced."""
+    if ident.startswith("/") or ident.endswith("/"):
+        return Issue(path, line, "error", kind,
+                     f"id `{ident}` must not start or end with `/` (SPEC \u00a73)")
+    if "//" in ident:
+        return Issue(path, line, "error", kind,
+                     f"id `{ident}` must not contain consecutive `//` (SPEC \u00a73)")
     return None
 
 
@@ -384,7 +492,8 @@ def _discover_corpus(target_files: list[Path]) -> list[str]:
     return scopes
 
 
-def collect_files(targets: list[str]) -> list[Path]:
+def collect_files(targets: list[str], ignore: list[str] | None = None) -> list[Path]:
+    ignore = ignore or []
     out: list[Path] = []
     for t in targets:
         p = Path(t)
@@ -392,10 +501,32 @@ def collect_files(targets: list[str]) -> list[Path]:
             out.append(p)
         elif p.is_dir():
             for ext in ("*.gmd", "*.md"):
-                out.extend(sorted(p.rglob(ext)))
+                # `is_file()` filter: `gmd init` creates a `.gmd/` DIRECTORY,
+                # which `rglob("*.gmd")` matches as an entry — it then surfaced
+                # as a bogus `parse-fail` (IsADirectoryError) on every recursive
+                # lint of a scaffolded project.
+                out.extend(sorted(
+                    f for f in p.rglob(ext)
+                    if f.is_file() and not _is_ignored(f, ignore)
+                ))
         else:
             print(f"gmd lint: not found: {t}", file=sys.stderr)
     return out
+
+
+def _is_ignored(f: Path, patterns: list[str]) -> bool:
+    """Match `.gmd/config.yml` `ignore:` globs against the path and its parents."""
+    s = f.as_posix()
+    for pat in patterns:
+        pat = pat.strip()
+        if not pat:
+            continue
+        if f.match(pat) or fnmatch.fnmatch(s, pat) or fnmatch.fnmatch(s, f"*/{pat}"):
+            return True
+        bare = pat.rstrip("/*").lstrip("*/")
+        if bare and f"/{bare}/" in f"/{s}/":
+            return True
+    return False
 
 
 def _parse_args(argv: list[str]) -> tuple[list[str], list[str], int | None, bool]:
@@ -467,6 +598,15 @@ def main(argv: list[str]) -> int:
     if not target_files:
         print("gmd lint: no files matched", file=sys.stderr)
         return 2
+    # Project-local config: extra_verbs widens the recommended vocabulary so a
+    # project's own verbs stop warning. Read from the first target's repo root.
+    _root = _repo_root(target_files[0])
+    if _root is not None:
+        _cfg = load_config(_root)
+        EXTRA_VERBS.update(_cfg.get("extra_verbs") or [])
+        _ignore = _cfg.get("ignore") or []
+        if _ignore:
+            target_files = collect_files(targets, _ignore)
     # --reconcile: auto-discover the repo + memory corpus as resolution
     # scope so a single-file lint checks its cross-doc links for real.
     if reconcile:
@@ -520,6 +660,14 @@ def main(argv: list[str]) -> int:
     by_id_or_stem: dict[str, Doc] = {}
     for key, d in docs.items():
         by_id_or_stem.setdefault(key, d)
+    literal_ids = set(docs.keys())
+    # A stem shared by several docs is an ambiguous address: `setdefault` below
+    # silently binds it to whichever was ingested first. Record those so a ref
+    # relying on one gets a warning instead of an arbitrary target.
+    stem_counts: dict[str, int] = {}
+    for d in docs.values():
+        stem_counts[d.path.stem] = stem_counts.get(d.path.stem, 0) + 1
+    ambiguous_stems = {s for s, n in stem_counts.items() if n > 1} - literal_ids
     for d in docs.values():
         by_id_or_stem.setdefault(d.path.stem, d)
 
@@ -543,7 +691,10 @@ def main(argv: list[str]) -> int:
     # scope docs) and emits issues for any unresolved ref. Filter the
     # results to keep only issues whose source path is a target file —
     # scope files contribute resolution-only, not issue-reporting.
-    ref_issues = resolve_refs(docs, by_id_or_stem, cross_doc_severity)
+    ref_issues = resolve_refs(
+        docs, by_id_or_stem, cross_doc_severity,
+        literal_ids=literal_ids, ambiguous_stems=ambiguous_stems,
+    )
     all_issues.extend(
         i for i in ref_issues if i.path.resolve() in target_paths
     )

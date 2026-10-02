@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: problem-log
+id: cat-herder/problem-log
 title: "Problem Log — agent-surfaced issues from reviews"
 tags: [log, review]
 metadata:

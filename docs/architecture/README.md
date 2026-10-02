@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: architecture-readme
+id: cat-herder/architecture-readme
 title: "{PROJECT_NAME} — Architecture Overview"
 tags: [architecture, overview]
 ---

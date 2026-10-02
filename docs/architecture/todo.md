@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: architecture-todo
+id: cat-herder/architecture-todo
 title: "Architecture Gap Tracking"
 tags: [architecture, todo, gaps]
 ---

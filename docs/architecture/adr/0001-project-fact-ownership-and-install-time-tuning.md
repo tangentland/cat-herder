@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: adr-0001-project-fact-ownership-and-install-time-tuning
+id: cat-herder/adr-0001-project-fact-ownership-and-install-time-tuning
 title: "ADR-0001: Project-fact ownership and install-time tuning"
 tags: [adr, architecture, install, tuning, project-profile]
 metadata:
