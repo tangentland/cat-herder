@@ -9,7 +9,7 @@ metadata:
 
 # Session Handoff for {PROJECT_NAME} {#root}
 
-Date: 2026-09-29
+Date: 2026-10-16
 
 ## Completed {#completed}
 
@@ -34,8 +34,11 @@ Date: 2026-09-29
 
 ## Git State {#git-state}
 
-- `main` at the merge of `install-tuning-review-fixes` (branch kept; earlier
-  `install-project-tuning` merged as `f7159c8`). Not pushed.
+- `main` @ `c501b69` (another session's "Namespace GMD doc ids by project", on top of this
+  session's merges `5a26b07` ADR-0001, `73404d8` review fixes, `f7159c8` install tuning).
+  Feature branches kept. **Not pushed** (user pushes).
+- Uncommitted, NOT from this session: id-namespacing edits to 12 `.claude/agents/*.md` and new
+  `tools/gmd/audit.py` — the continuation of `c501b69`; left for its owner.
 
 ## Next Steps {#next-steps}
 
