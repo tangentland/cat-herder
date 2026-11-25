@@ -249,6 +249,19 @@ wire_rmx_hooks() {
   else
     warn "run 'rmx install-hooks --apply' in the project to wire git-side sync hooks"
   fi
+  # refmatrix owns gmd-curator.md and the eight session commands (save-state, recall-state,
+  # commit-state, detour, return, stash, stash-list, stash-pop); this template stopped shipping
+  # them (refmatrix H1.a / Q70, 2026-11-25: two installers shipped nine copies that all
+  # differed). `rmx init` places the one copy: the agent and project commands in .claude/,
+  # /save-state and /recall-state in ~/.claude/commands/. Its output is shown on failure.
+  local out
+  if out=$(rmx init --no-hooks --agents 2>&1); then
+    ok "placed rmx agents and commands (rmx init --no-hooks --agents)"
+  else
+    warn "rmx init failed; run 'rmx init --no-hooks --agents' in the project:"
+    printf '%s\n' "$out" >&2
+    FAILED+=("rmx init")
+  fi
 }
 
 # ---------------------------------------------------------------------------
