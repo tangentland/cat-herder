@@ -1,6 +1,6 @@
 ---
 gmd: "0.1"
-id: general-purpose
+id: cat-herder/general-purpose
 title: "general-purpose — Project-level general-purpose agent"
 tags: [agent, cat-herder]
 metadata:
